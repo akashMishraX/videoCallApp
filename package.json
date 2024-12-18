@@ -1,0 +1,21 @@
+{
+  "name": "chatapp",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "client": "npm run dev -w app/frontend",
+    "server": "npm run dev -w app/backend",
+    "dev": "concurrently \"npm run client\" \"npm run server\""
+  },
+  "workspaces": [
+    "app/frontend",
+    "app/backend"
+  ],
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "concurrently": "^9.1.0"
+  }
+}
