@@ -1,30 +1,49 @@
 <script setup lang="ts">
-import HelloWorld from './components/HelloWorld.vue'
+  import HelloWorld from './components/HelloWorld.vue'
+  import ChatComponent from './components/ChatComponent.vue';
+  import { createRouter, createWebHistory } from 'vue-router'; // Correct import for Vue Router 4
+</script>
+
+
+<script lang="ts">
+  const routes = [
+      {path : '/', component: HelloWorld},
+      {path : '/chat', component: ChatComponent},
+  ]
+  export const router = createRouter({
+      history: createWebHistory(),
+      routes
+  })
 </script>
 
 <template>
-  <div>
-    <a href="https://vite.dev" target="_blank">
-      <img src="/vite.svg" class="logo" alt="Vite logo" />
-    </a>
-    <a href="https://vuejs.org/" target="_blank">
-      <img src="./assets/vue.svg" class="logo vue" alt="Vue logo" />
-    </a>
-  </div>
-  <HelloWorld msg="Vite + Vue" />
+  <nav >
+    <RouterLink to="/">
+      <span>Home</span>
+    </RouterLink>
+    <RouterLink to="/chat">
+      <span>chat</span>
+    </RouterLink>
+  </nav>
+   <RouterView />
 </template>
 
-<style scoped>
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
+<style>
+nav{
+    display: flex;
+    gap: 1rem;
+    background-color: rgb(199, 199, 199);
+
 }
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
+span {
+  color: black;
+  text-decoration: none;
+  font-size: 20px;
 }
-.logo.vue:hover {
-  filter: drop-shadow(0 0 2em #42b883aa);
+#app {
+  font-family: Avenir, Helvetica, Arial, sans-serif;
+  text-align: center;
+  color: #ffffff;
+  margin-top: 60px;
 }
 </style>

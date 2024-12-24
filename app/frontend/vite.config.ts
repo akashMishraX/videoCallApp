@@ -14,5 +14,5 @@ export default defineConfig({
         theme_color: '#ffffff',
       },
     }),
-  ],
+  ]
 });
