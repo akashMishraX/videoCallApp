@@ -14,8 +14,11 @@
     "typescript": "^5.7.2"
   },
   "dependencies": {
+    "@socket.io/redis-adapter": "^8.3.0",
     "@types/node": "^22.10.2",
+    "cors": "^2.8.5",
     "express": "^4.21.2",
+    "ioredis": "^5.4.2",
     "socket.io": "^4.8.1"
   }
 }
