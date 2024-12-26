@@ -1,7 +1,6 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { io } from 'socket.io-client';
 
-
 export default function useSocket() {
     const socket = ref<any>(null);
     const messages = ref<string[]>([]);
@@ -10,8 +9,7 @@ export default function useSocket() {
     const roomUsers = ref<string[]>([])
     const roomError = ref<any>(null)
 
-
-    const SOCKET_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+    const SOCKET_URL = 'http://localhost:4000';
     
     function connect(){
         socket.value = io(SOCKET_URL,{
@@ -30,7 +28,8 @@ export default function useSocket() {
             roomUsers.value = []
         })
 
-        socket.value.on('message',(message: string) => {
+        socket.value.on('message',async (message: string) => {
+            // await 
             messages.value.push(message)
         })
 
