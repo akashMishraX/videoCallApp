@@ -1,49 +1,43 @@
-<script setup lang="ts">
-  import HelloWorld from './components/HelloWorld.vue'
-  import ChatComponent from './components/ChatComponent.vue';
-  import { createRouter, createWebHistory } from 'vue-router'; // Correct import for Vue Router 4
-</script>
-
-
-<script lang="ts">
-  const routes = [
-      {path : '/', component: HelloWorld},
-      {path : '/chat', component: ChatComponent},
-  ]
-  export const router = createRouter({
-      history: createWebHistory(),
-      routes
-  })
-</script>
-
 <template>
-  <nav >
-    <RouterLink to="/">
-      <span>Home</span>
-    </RouterLink>
-    <RouterLink to="/chat">
-      <span>chat</span>
-    </RouterLink>
-  </nav>
-   <RouterView />
+  <RouterView />
 </template>
 
-<style>
-nav{
-    display: flex;
-    gap: 1rem;
-    background-color: rgb(199, 199, 199);
+<script lang="ts">
+// import { RouterView } from 'vue-router' 
+import { createRouter ,createWebHistory } from 'vue-router'
 
-}
-span {
-  color: black;
-  text-decoration: none;
-  font-size: 20px;
-}
-#app {
-  font-family: Avenir, Helvetica, Arial, sans-serif;
-  text-align: center;
-  color: #ffffff;
-  margin-top: 60px;
-}
-</style>
+import roomComponent from './components/roomComponent.vue';
+import HomeComponent from './components/HomeComponent.vue';
+import Login from './components/Login.vue';
+const routes = [
+      {path : '/', component: HomeComponent,
+        beforeEnter: (_to:any, _from:any, next:any) => {
+          if (sessionStorage.getItem('isLogged') === 'true') {
+            next()
+          } else {
+            next('/login')
+          }
+        }
+      },
+      {path : '/chat/:roomId', component: roomComponent, props: true,
+      beforeEnter: (_to:any, _from:any, next:any) => {
+          if (sessionStorage.getItem('isLogged') === 'true') {
+            next()
+          } else {
+            next('/login')
+          }
+        }
+      },
+      {path : '/login', component: Login},
+]
+const router = createRouter({
+  history: createWebHistory(),
+  routes,  // Shortened version, same as `routes: routes`
+
+});
+
+
+export default router
+</script>
+
+<style scoped></style>
