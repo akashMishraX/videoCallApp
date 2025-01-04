@@ -4,10 +4,11 @@ import { Socket } from 'dgram';
 
 export let participants : any = {}
 
-const {pub,sub} = InitRedis()
+const {pub,sub,roomManager} = InitRedis()
 export default class SocketSetup{
     private _io: any;
-    public rooms : Map<string, Set<string>> = new Map()
+    private currentRoomId : string = ''
+    private currentUserId : string = ''
 
     constructor(server:any){
         console.log('Socket init....')
@@ -25,10 +26,13 @@ export default class SocketSetup{
         console.log('Io init....')
         this._io.on('connect',async (socket:any)=>{
             console.log('User is connected',socket.id)
-            let currentRoomId : string = '';
-            let currentUserId : string = '';
 
-            // server listener
+        // -------WEBRTC MANAGEMENT-------
+            
+
+        // -------WEBRTC MANAGEMENT-------
+
+        // -------MESSAGE MANAGEMENT------- 
             socket.on('Event:message',async (message:string,roomId:string,userId:string)=>{
                 const data = {
                     message,
@@ -40,84 +44,114 @@ export default class SocketSetup{
 
                 console.log('Message recieved',data)
             })
+        // -------MESSAGE MANAGEMENT-------
 
-            // server listener
-            socket.on('Event:join-room',async (roomId:string,userId:string)=>{
-                currentUserId = userId
+        // -------ROOM MANAGEMENT-------
+            socket.on('Event:join-room',async (roomId:string,userId:string,userData:{
+                avator : string,
+                isAudioEnabled : boolean,
+                isVideoEnabled : boolean
+            })=>{
+                this.currentUserId = userId
 
                 // Room setup
-                if (!this.rooms.has(roomId)) {
-                    this.rooms.set(roomId, new Set());
+                const roomExists = await roomManager.doesRoomExist(roomId)
+                if(!roomExists){
+                    await roomManager.createRoom(roomId,{
+                        roomName : roomId,
+                        roomSize : 0,
+
+                        createdAt : new Date().toISOString()
+                    })
                 }
 
-                const room = this.rooms.get(roomId);
-
+                
+                let roomSize = await roomManager.getRoomSize(roomId)
                 //Room size constraint
-                if (room!.size >= 2) {
+                if (roomSize >= 5) {
                     socket.emit('Event:room-error',"You can't join this room")
                     return;
                 }
 
                 // Leave previous room
-                if (currentRoomId) {
-                    socket.leave(currentRoomId);
-                    const oldRoom = this.rooms.get(currentRoomId);
-                    oldRoom!.delete(currentUserId);
-                    if(oldRoom!.size === 0){
-                        this.rooms.delete(currentRoomId)
-                        await sub.unsubscribe('MESSAGE' + currentRoomId)
+                if (this.currentRoomId !== '') {
+                    socket.leave(roomId);
+                    const roomSize = await roomManager.getRoomSize(roomId)
+                    if(roomSize === 0){
+                        // await roomManager.cleanupEmptyRoom(this.currentRoomId)
+                        await sub.unsubscribe('MESSAGE' + roomId)
                     }
-                    currentRoomId = ''
+                    this.currentRoomId = ''
                 }
                 
                 // Join new room
                 socket.join(roomId)
-                room!.add(userId)
-                currentRoomId = roomId
+                await roomManager.addUserToRoom(roomId,userId,{
+                    socketId : socket.id,
+                    isAudioEnabled : userData.isAudioEnabled,
+                    isVideoEnabled : userData.isVideoEnabled,
+                    avator : userData.avator
+                })
+                roomSize = await roomManager.getRoomSize(roomId)
+                await roomManager.updateRoomData(roomId,{roomSize : roomSize + 1})
+                this.currentRoomId = roomId
 
                 // Subscribe to channel
                 const channelName = 'MESSAGE' + roomId 
                 await sub.subscribe(channelName)
 
-                // Update Participants
-                participants[roomId] = Array.from(this.rooms.get(roomId) || [])
                 
 
-                // Notifiy users
+                // Notifiy user `s
                 this._io.to(roomId).emit('Event:room-joined',roomId,userId)
-                this._io.to(roomId).emit('Event:roon-users',roomId,[userId])
+                this._io.to(roomId).emit('Event:room-users',roomId,[userId])
                 console.log('User',userId,'joined room',roomId)
             })
 
-            socket.on('Event:leave-room',async (roomId:string,userId:string)=>{
-                if(!this.rooms.get(roomId)!.has(userId)){
-                    socket.emit('Event:room-error',"You are not in this room !!")
-                    return;
+            
+            socket.on("Event:room-data",async (roomId: string, ackCallback: (response: { status: string; message: any }) => void) => {
+                const isRoom = await roomManager.doesRoomExist(roomId)
+                const isUserInRoom = await roomManager.isRooomEmpty(roomId)
+                let resMsg
+                if(isRoom || isUserInRoom){    
+                    const roomUsers = await roomManager.getRoomUsers(roomId)
+                    resMsg = roomUsers
+                }else{
+                    resMsg = 'Room does not exist'                    
                 }
-                if (currentRoomId === roomId && currentUserId === userId) {
-                    socket.leave(currentRoomId);
-                    const oldRoom = this.rooms.get(currentRoomId);
-                    oldRoom!.delete(currentUserId);
-                    if(oldRoom!.size === 0){
-                        this.rooms.delete(currentRoomId)
-                        await sub.unsubscribe('MESSAGE' + currentRoomId)
-                    }
-                    currentRoomId = ''
-                    currentUserId = ''
 
+                ackCallback({
+                    status: "ok",
+                    message: resMsg
+                })
+            });
+            
+
+            socket.on('Event:leave-room',async (roomId:string,userId:string)=>{
+                const isUserInRoom = await roomManager.isUserInRoom(roomId,userId)
+                const isRoom = await roomManager.doesRoomExist(roomId)
+                if(!isUserInRoom || !isRoom){
+                    socket.emit('Event:room-error',"You are not in this room !!")
+                    // this._io.to(roomId).emit('Event:room-left',roomId,userId)
+                    // this._io.to(roomId).emit('Event:room-users',roomId,[])``
+                    return;
+                }else{
+                    socket.leave(userId);
+                    await roomManager.removeUserFromRoom(roomId,userId)
+                    
                     this._io.to(roomId).emit('Event:room-left',roomId,userId)
-                    this._io.to(roomId).emit('Event:roon-users',roomId,[])
+                    this._io.to(roomId).emit('Event:room-users',roomId,[])
                     console.log('User',userId,'left room',roomId)
                     return;
                 }
-
+                
             })
-
-
 
             socket.on('disconnect',()=>{
-                console.log('User is disconnected',socket.id)   
+                console.log('User is disconnected',socket.id)  
+
             })
+        // -------ROOM MANAGEMENT-------
         })
 
         sub.on('message',(channel:string,message:string)=>{

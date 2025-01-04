@@ -1,4 +1,5 @@
 import Redis from 'ioredis'
+import RoomManager from '../redisData/roomManager';
 
 export function InitRedis(){
     const redisOptions = {
@@ -19,8 +20,10 @@ export function InitRedis(){
         console.log('Sub connected')
     })
 
+    const roomManager = new RoomManager(pub)
     return {
         pub,
-        sub
+        sub,
+        roomManager
     }
 }
