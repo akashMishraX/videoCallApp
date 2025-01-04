@@ -17,14 +17,16 @@ interface Message {
 }
 
 const props = defineProps<{
+  socketClient: SocketClient
+  isConnected: boolean
   roomId: string
   userId: string
 }>()
 
-const socketClient = new SocketClient
+// const socketClient = new SocketClient
 const message: Ref<string> = ref('')
-const isConnected: Ref<boolean> = ref(socketClient.isDisconnected)
-const messageQueue: Ref<Message[]> = ref(socketClient.messageQueue)
+const isConnected: Ref<boolean> = ref(props.socketClient.isDisconnected)
+const messageQueue: Ref<Message[]> = ref(props.socketClient.messageQueue)
 
 const messagesContainerRef = ref<HTMLDivElement | null>(null)
 
@@ -47,20 +49,48 @@ const handleSendMessage = async () => {
     return
   }
 
-  socketClient.sendMessage(message.value, props.roomId, props.userId)
+  props.socketClient.sendMessage(message.value, props.roomId, props.userId)
   console.log('message is sent', message.value)
   message.value = ''
   await nextTick()
   scrollToBottom()
 }
+interface userObjInterface {
+  avator : string,
+  isAudioEnabled : boolean,
+  isVideoEnabled : boolean
+}
+const userString = sessionStorage.getItem('user');
+let userPicture = "";
+// Check if the user data exists in sessionStorage
+if (userString) {
+  // Parse the JSON string into an object
+  const userData = JSON.parse(userString);
+
+  // Extract the picture URL
+  userPicture = userData.picture;
+
+  // Log the picture URL
+  console.log(userPicture);
+} else {
+  userPicture = '../assets/user.png';
+  console.log("No user data found in sessionStorage.");
+}
+
+
 
 const handleConnect = async () => {
-  socketClient.joinRoom(props.roomId, props.userId)
+  const userData = {
+    avator : userPicture,
+    isAudioEnabled : true,
+    isVideoEnabled : true,
+  } as userObjInterface
+  props.socketClient.joinRoom(props.roomId, props.userId,userData)
   isConnected.value = true
 }
 
 const handleDisconnect = async (): Promise<void> => {
-  socketClient.leaveRoom(props.roomId, props.userId)
+  props.socketClient.leaveRoom(props.roomId, props.userId)
   isConnected.value = false
   currentUser.value.online = false
 
@@ -94,32 +124,34 @@ if (!props.roomId && !props.userId) {
   isConnected.value = false
 }
 
-onMounted(() => {
+onMounted(async() => {
   if (props.roomId && props.userId) {
     handleConnect()
   }
+
   scrollToBottom()
 })
+
+
+
 </script>
+
 
 <template>
   <div class="chat" style="display: flex; justify-content: center; align-items: center;">
     <div class="chat-container">
       <div class="chat-header">
         <div class="user-info">
-            <div class="avatar">
+            <!-- <div class="avatar">
               <img :src="currentUser.avatar" :alt="currentUser.name">
-            </div>
+            </div> -->
           <div class="user-details">
-            <h3>{{ currentUser.name }}</h3>
-            <span :class="['status', { 'online': isConnected }]">
+            <h3 style="margin-left: 15px;">Message Box</h3>
+            <!-- <span :class="['status', { 'online': isConnected }]">
               {{ isConnected ? 'Online' : 'Offline' }}
-            </span>
+            </span> -->
           </div>
         </div>
-        <button @click="handleDisconnect" class="disconnect-button">
-          Disconnect
-        </button>
       </div>
 
       <div class="messages-container" ref="messagesContainerRef">
@@ -127,9 +159,10 @@ onMounted(() => {
           :class="['message-wrapper', message.userId === userId ? 'sent' : 'received']">
           <div class="message-content" v-if="message.roomId === roomId">
             <div class="avatar" v-if="message.userId !== userId">
-              <img :src="currentUser.avatar" :alt="currentUser.name">
+              <img src="../assets/user.png" :alt="currentUser.name" style="background-color: aliceblue;">
             </div>
             <div class="message-bubble">
+              <div class="message-userid">{{ message.userId?.toLowerCase() }}</div>
               <div class="message-text">{{ message.text }}</div>
               <div class="message-meta">
                 <span class="timestamp">{{ formatTime(message.timestamp) }}</span>
@@ -253,7 +286,11 @@ onMounted(() => {
 .message-bubble {
   position: relative;
 }
-
+.message-userid{
+  color: #ffffff;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-size: 15px;
+}
 .message-text {
   padding: 0.75rem;
   border-radius: 12px;
