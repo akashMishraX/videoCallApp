@@ -20,12 +20,15 @@ const socketClient = new SocketClient()
 
 // const { user } = useAuth()
 
+
 onMounted(() => {
   socketClient.loadExistingParticipants(props.roomId)
 })
+
 onUnmounted(() => {
   socketClient.loadExistingParticipants(props.roomId)
 })
+
 
 
 
@@ -131,6 +134,10 @@ if (!props.roomId && !userId.value) {
 }
 
 
+
+function beforeUnmount(arg0: () => void) {
+  throw new Error('Function not implemented.');
+}
 </script>
 
 <template>
@@ -141,13 +148,30 @@ if (!props.roomId && !userId.value) {
              :key="participant?.id || index"
              class="video-placeholder" 
              :style="getParticipantStyle(index)">
+          <video
+            class="videos"
+            v-show="participant?.userId === userId"
+            :id="participant?.id"
+            :srcObject="socketClient.localVideo.value?.srcObject"
+            autoplay
+            playsinline
+          ></video>
+          <video
+            class="videos"
+            v-show="participant?.userId !== userId"
+            :id="participant?.id"
+            :srcObject="socketClient.remoteVideoChild.value?.srcObject"
+            autoplay
+            playsinline
+          ></video>
+          
           <div class="participant-container">
             <div class="avatar">
               <img src="../assets/user.png" :alt="participant?.userId">
             </div>
             <div class="participant-name">
-              
-              {{ participant?.userId }}
+              <span v-if="participant?.userId !== userId">{{ participant?.userId }}</span>
+              <span v-else>You</span>
             </div>
           </div>
         </div>
@@ -208,6 +232,12 @@ if (!props.roomId && !userId.value) {
 
 .video-container-small {
   width: 75%;
+}
+
+.videos{
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .video-placeholder {
