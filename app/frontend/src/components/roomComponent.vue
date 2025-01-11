@@ -135,9 +135,7 @@ if (!props.roomId && !userId.value) {
 
 
 
-function beforeUnmount(arg0: () => void) {
-  throw new Error('Function not implemented.');
-}
+
 </script>
 
 <template>
@@ -148,7 +146,8 @@ function beforeUnmount(arg0: () => void) {
              :key="participant?.id || index"
              class="video-placeholder" 
              :style="getParticipantStyle(index)">
-          <video
+          <div v-if="socketClient.localVideo.value" class="videos"> 
+            <video
             class="videos"
             v-show="participant?.userId === userId"
             :id="participant?.id"
@@ -164,8 +163,9 @@ function beforeUnmount(arg0: () => void) {
             autoplay
             playsinline
           ></video>
+          </div>
           
-          <div class="participant-container">
+          <div class="participant-container" v-else>
             <div class="avatar">
               <img src="../assets/user.png" :alt="participant?.userId">
             </div>
