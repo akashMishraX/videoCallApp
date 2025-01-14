@@ -10,8 +10,8 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'My Basic PWA',
-        short_name: 'BasicPWA',
+        name: 'videoApp',
+        short_name: 'videoApp',
         description: 'A basic starter PWA with Vue 3 and Vite',
         theme_color: '#ffffff',
       },
