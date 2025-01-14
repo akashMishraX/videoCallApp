@@ -24,7 +24,9 @@ export default class SocketSetup{
             cors:{
                 origin: 'https://localhost:5173', 
                 methods : ['GET','POST'],
-                credentials:true
+                credentials:true,
+                allowedHeaders: ['Content-Type', 'Authorization'],
+                exposedHeaders: ['Content-Type', 'Authorization'],        
             }
         });   
     }

@@ -42,7 +42,7 @@ export default class SocketClient{
     private pendingIceCandidates:  RTCIceCandidate[] = [];
 
     constructor(){
-        const SOCKET_URL = 'http://localhost:4000'
+        const SOCKET_URL = import.meta.env.VITE_SOCKET_URL
         this._io = io(SOCKET_URL,{
             transports: ['websocket'],
             autoConnect: true,

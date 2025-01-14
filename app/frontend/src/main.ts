@@ -5,8 +5,8 @@ import App from './App.vue';
 import router from './App.vue';
 import vue3GoogleLogin from 'vue3-google-login'
 
-const CLIENT_ID = '450778450167-jmfjl7uiriclrh6dcq48edktab7js0ov.apps.googleusercontent.com'
-
+const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID 
+console.log(CLIENT_ID)
 createApp(App)
     .use(vue3GoogleLogin,{
         clientId:CLIENT_ID

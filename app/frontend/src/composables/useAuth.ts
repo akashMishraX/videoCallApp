@@ -35,7 +35,7 @@ export default function useAuth() {
     const handleLogin = async(userData: GoogleUser) => {
         isLogged.value = true
         // let base64Image = ''
-        await fetchAndStoreImage(userData.picture, userData)
+        // await fetchAndStoreImage(userData.picture, userData)
   
         user.value = userData
         clearSessionStorage()
@@ -69,37 +69,37 @@ export default function useAuth() {
     }
 
     // Function to fetch image and store in sessionStorage
-    async function fetchAndStoreImage(imageUrl: string, userObj: GoogleUser) {
-        return fetch(imageUrl)
-        .then(response => response.blob())
-        .then(blob => {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
+    // async function fetchAndStoreImage(imageUrl: string, userObj: GoogleUser) {
+    //     return fetch(imageUrl)
+    //     .then(response => response.blob())
+    //     .then(blob => {
+    //         return new Promise((resolve, reject) => {
+    //             const reader = new FileReader();
                 
-                reader.onloadend = () => {
-                    try {
-                        // console.log('Image fetched and stored:', userObj.picture);
-                        if (reader.result !== null) {
-                            userObj.picture = reader.result as string;
-                            resolve(reader.result as string);
-                        } else {
-                            reject(new Error('Failed to read image result'));
-                        }
-                    } catch (error) {
-                        reject(error);
-                    }
-                }
+    //             reader.onloadend = () => {
+    //                 try {
+    //                     // console.log('Image fetched and stored:', userObj.picture);
+    //                     if (reader.result !== null) {
+    //                         userObj.picture = reader.result as string;
+    //                         resolve(reader.result as string);
+    //                     } else {
+    //                         reject(new Error('Failed to read image result'));
+    //                     }
+    //                 } catch (error) {
+    //                     reject(error);
+    //                 }
+    //             }
                 
-                reader.onerror = () => {
-                    reject(new Error('Failed to convert blob to base64'));
-                };
+    //             reader.onerror = () => {
+    //                 reject(new Error('Failed to convert blob to base64'));
+    //             };
                 
-                // Convert blob to base64
-                reader.readAsDataURL(blob);
-            });
+    //             // Convert blob to base64
+    //             reader.readAsDataURL(blob);
+    //         });
         
-        })
-    }
+    //     })
+    // }
   
     // Function to retrieve and display stored image
     
