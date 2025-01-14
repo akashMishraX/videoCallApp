@@ -256,6 +256,9 @@ if (!props.roomId && !userId.value) {
 </template>
 
 <style scoped>
+:root {
+  background-color: #000000;
+}
 .container {
   display: flex;
   height: 90vh;
