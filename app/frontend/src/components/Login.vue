@@ -7,11 +7,11 @@
         <div class="logo-wrapper">
           <div class="logo">
             <span>
-              CA
+              VA
             </span>
           </div>
         </div>
-        <h1 class="main-title">Welcome to Chat App</h1>
+        <h1 class="main-title">Welcome to videoapp</h1>
         <p class="subtitle">Let's get started</p>
       </div>
 
