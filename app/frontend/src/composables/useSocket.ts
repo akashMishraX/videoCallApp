@@ -1,31 +1,6 @@
 import { io } from 'socket.io-client';
 import { reactive, ref, Ref } from 'vue';
-interface OfferCreationResponse{
-    offer :RTCSessionDescriptionInit,
-    roomId:string,
-    offerUserId:string
-}
-interface OfferRecieved{
-    offer:RTCSessionDescriptionInit,
-    offererId:string,
-    offererSocketId:string,
-    answererId:string,
-    answerSocketId:string,
-}
-interface AnswerResponse{
-    answer:RTCSessionDescriptionInit,
-    offererId:string,
-    offererSocketId:string,
-    answererId:string,
-    answerSocketId:string,
-}
-interface AnswerRecieved {
-    answer:RTCSessionDescriptionInit,
-    offererId:string,
-    offererSocketId:string,
-    answererId:string,
-    answerSocketId:string,
-}
+
 export default class SocketClient{
     private _io:any
     public isDisconnected : boolean = true
@@ -33,6 +8,7 @@ export default class SocketClient{
     private initialized: boolean = false;
 
     public currentRoomId : Ref<string> = ref('');
+    public currentUserId : Ref<string> = ref('');
     public roomUsers : Ref<string[]> = ref([]);
     public roomError : Ref<any> = ref(null);
 
@@ -140,93 +116,104 @@ export default class SocketClient{
         }
     }
 // ------------- WEBRTC -----------------
-    private initializeWebRTCListeners(){
+    private async initializeWebRTCListeners(){
+        const socket = this._io
 
-        this._io.on('Event:createOffer',async (data:{
-            roomId:string,
-            userId:string,
-            socketId:string
-        })=>{   
-            console.log('[Client]:Received Offer Creation Request',data.roomId,data.userId)
-            const offerObj:OfferCreationResponse = await this.handleOfferCreation(data) // create offer and passed it as interface
-            await this._io.emit('Event:offer',offerObj)
-        })
-        
-
-        this._io.on('Event:offer-recieved',async (data:OfferRecieved) => {
-            
-            console.log(`[Client]:Recieved Offer by ${data.answererId} send from  ${data.offererId} :-${data}`)
-            const answerObj :AnswerResponse = await this.handleOffer(data)
-            await this._io.emit('Event:answer',answerObj)
-        })  
-        
-        this._io.on('Event:answer-recieved',async (data:AnswerRecieved)=>{
-            console.log(`[Client]:Recieved Answer from `,data)
-            await this.handleAnswer(data)
-        })
-        this._io.on('Event:ICEcandidate-recieved',async (data:{
-            candidate:RTCIceCandidate,
-            roomId:string,
-            receiverId:string,
-            isofferer:boolean
+        socket.on('Event:createOffer',async (data:{
+            roomId : string,
+            userId : string
         })=>{
-            console.log(`[Client]:Recieved ICE candidate :`,data)
-            await this.handleIceCandidate(data.candidate)
+            console.log('[CLIENT]:Offer creation request recieved.',data)
+            const offer = await this.handleCreateOffer()
+            socket.emit('Event:offer',{
+                roomId : data.roomId,
+                userId : data.userId,
+                offer : offer
+            })
         })
-        this._io.on('Event:resetPeerConnectionForRoom-recieved',async (roomId:string)=>{
-            console.log('Resetting peer connection for room...')
-            if(this.currentRoomId.value === roomId){
-                this.clearPeerConnection()
-                // this._io.emit('Event:clientCreateOffer',roomId)
-            }
+
+        socket.on('Event:offer-recieved',async (data:{
+            roomId:string,
+            offererSocketId:string,
+            userId:string,
+            userSocketId:string,
+            offer:RTCSessionDescriptionInit
+        })=>{
+            console.log('[WEBRTC]:Offer recieved.',data)
+            // handle offer and create new answer
+            const answer = await this.handleOffer({
+                offer : data.offer,
+                offererSocketId : data.offererSocketId
+            })
+            socket.emit('Event:answer',{
+                roomId : data.roomId,
+                offererSocketId : data.offererSocketId,
+                userId : data.userId,
+                userSocketId : data.userSocketId,
+                answer : answer
+            })
         })
-    }
-    private async handleIceCandidate(candidate: RTCIceCandidate) {
-        try {
-            if(candidate){
-                await this.peerConnection.value!.addIceCandidate(candidate);
+        socket.on('Event:answer-recieved',async (data:{
+            roomId:string,
+            offererSocketId:string,
+            userId:string,
+            userSocketId:string,
+            answer:RTCSessionDescriptionInit
+        })=>{
+          console.log('[WEBRTC]:Offerer got the answer.',data)  
+          await this.handleAnswer({
+            userSocketId : data.userSocketId,
+            offererSocketId : data.offererSocketId,
+            answer : data.answer
+          })
+        })
+        socket.on('Event:ice-candidate-recieved',async (candidate: RTCIceCandidate,senderSocketId:string)=>{
+            console.log('[WEBRTC]:Ice candidate recieved from ',senderSocketId,':-',candidate)
+            await this.handleIceCandidate(candidate)
+        })
+        socket.on('Event:offerer-changed',async (data:{
+            roomId:string,
+            newOffererId:string
+            newOffererSocketId:string
+        })=>{
+            console.log('[WEBRTC]:Offerer changed.',data)
+            if(this.currentRoomId.value === data.roomId && this.currentUserId.value === data.newOffererId){
+                socket.emit('Event:changeOfferer',{
+                    roomId : data.roomId,
+                    newOfferId : this.currentUserId.value,
+                    newOffererSocketId: data.newOffererSocketId
+                })
             }
+            // after this  each client will check for their userId and offererUserId if this matches then they will create offer and send it.
+        })
+        
+    }
+    private async handleCreateOffer() {
+        try {
+            await this.fecthUserMedia()
+            await this.handlePeerConnection(true)
+
+            //CREATE OFFER
+            const offer = await this.peerConnection.value?.createOffer()
+            await this.peerConnection.value?.setLocalDescription(offer)
+            console.log('[WEBRTC]:offer created....', offer);
+            return offer     
         } catch (error) {
-            throw new Error('Error Setting ICE candidate.');
             
         }
     }
-    private async handleAnswer(data: AnswerRecieved) {
+    private async handleOffer(data:{
+        offer : RTCSessionDescriptionInit,
+        offererSocketId : string
+    }) {
         try {
-            this.sendPendingIceCandidates(data.answerSocketId)
-            this.peerConnection.value!.setRemoteDescription(data.answer);
-            console.log('Answer set to RemoteDescription');
-        } catch (error) {
-            throw new Error('Error setting Answer.');
-        }
-    }
-    private async handleOfferCreation(data: { roomId: string; userId: string; socketId: string; }): Promise<OfferCreationResponse> {
-        try {
-            await this.fecthUserMedia();
-            
-            await this.handlePeerConnection(null,true)
-            
-            // create Offer 
-            const offer = await this.peerConnection.value!.createOffer();
-            await this.peerConnection.value!.setLocalDescription(offer);
-            console.log('Offer created...',offer);
-            const returnObj:OfferCreationResponse = {
-                offer :offer,
-                roomId:data.roomId,
-                offerUserId:data.userId
-            }
-            return returnObj
-        } catch (error) {
-            throw new Error('[Error]:Unable to create Offer.')
-        }
-    }
-    private async handleOffer(data: OfferRecieved): Promise<AnswerResponse> {
-        try {
-            await this.fecthUserMedia();
-            console.log(data)
-            await this.handlePeerConnection(data.offer,false,{receiverId:data.offererSocketId});
-            console.log('ANSWER-CHECKPOINT')
-            const answer = await this.peerConnection.value!.createAnswer();
+            await this.fecthUserMedia()
+            await this.handlePeerConnection(false,{offer: data.offer},{
+                receiverId : data.offererSocketId
+            })
+
+            // CREATE ANSWER
+            const answer = await this.peerConnection.value?.createAnswer()
             if(answer){
                 await this.peerConnection.value!.setLocalDescription(answer);
                 console.log('Answer created set to LocalDescription');
@@ -234,20 +221,42 @@ export default class SocketClient{
             else{
                 throw new Error('Error creating Answer.')
             }
-            console.log('Creating answer...');
-            const answerObj = {
-                answer:answer,
-                offererId:data.offererId,
-                offererSocketId:data.offererSocketId,
-                answererId:data.answererId,
-                answerSocketId:data.answerSocketId,
-            }
-            return answerObj
+            console.log('[WEBRTC]:Answer created...', answer);
+            return answer
         } catch (error) {
-            throw new Error('[Error]:Unable to create Answer.'+error)
+            
+        }
+    }
+    private async handleAnswer(data:{userSocketId: string,offererSocketId: string,answer : RTCSessionDescriptionInit}) {
+        try {
+            console.log('TESTING ANSWER',data.answer)
+            if(data.answer){
+                await this.peerConnection.value?.setRemoteDescription(data.answer)
+                console.log('Answer set to RemoteDescription');
+                await this.sendPendingIceCandidates(data.userSocketId,data.offererSocketId)
+
+            }
+        } catch (error) {
+            console.error('Error setting remote description:', error);
         }
     }
 
+    private async handleIceCandidate(candidate: RTCIceCandidate) {
+        
+        try {
+            if (this.peerConnection.value?.remoteDescription && candidate) {
+                this.peerConnection.value?.addIceCandidate(candidate)
+            }
+            else{
+                throw new Error('The remote description was null')
+            }
+        } catch (error) {
+            if (error === 'The remote description was null') {
+                this.pendingIceCandidates = this.pendingIceCandidates || []
+                this.pendingIceCandidates.push(candidate)
+            }
+        }
+    }
     private async fecthUserMedia(): Promise<void> {
         try {
             // Check if browser supports getUserMedia
@@ -303,21 +312,28 @@ export default class SocketClient{
 
         }
     }
-
-    public sendPendingIceCandidates(receiverId:string) {
-        this.pendingIceCandidates.forEach(candidate => {
-            this._io.emit('Event:exchangeICEcandidate', {
-                candidate: candidate,
-                roomId: this.currentRoomId.value,
-                receiverId: receiverId,
-                isofferer: true
-            });
-       })
+    private sendPendingIceCandidates(receiverSocketId: string,senderSocketId:string) {
+        try {
+            this.pendingIceCandidates.forEach(candidate => {
+                this._io.emit('Event:exchangeICEcandidate', {
+                    candidate: candidate,
+                    roomId: this.currentRoomId.value,
+                    senderSocketId: senderSocketId,
+                    receiverSocketId: receiverSocketId,
+                    isofferer: true
+                });
+               
+           })
+            this.pendingIceCandidates = [];
+        } catch (error) {
+            console.error('Error sending pending ICE candidates:', error);
+        }
     }
-
-    private async handlePeerConnection(offerObj:any,isofferer:boolean,metadata?:{receiverId:string}) {
+    private async handlePeerConnection(isofferer:boolean,offerObj?:{offer:RTCSessionDescriptionInit},metadata?:{receiverId:string}) {
         try { 
+            
             this.peerConnection.value = new RTCPeerConnection(this.peerConnectionConfig)
+            
             if(!this.peerConnection.value){
                 this.clearPeerConnection()
             }
@@ -340,7 +356,8 @@ export default class SocketClient{
                             this._io.emit('Event:exchangeICEcandidate', {
                                 candidate: event.candidate,
                                 roomId: this.currentRoomId.value,
-                                receiverId: metadata.receiverId,
+                                senderSocketId: this.currentUserId.value,
+                                receiverSocketId: metadata.receiverId,
                                 isofferer: isofferer
                             });
                         } 
@@ -390,11 +407,10 @@ export default class SocketClient{
             }
             
         } catch (error) {
-            throw new Error(`Error handling Peer Connection:${error}`);
+            console.error('Error creating peer connection:', error);
         }
         
     }
-
 
     public async clearPeerConnection() {
         try {
@@ -462,13 +478,7 @@ export default class SocketClient{
             this.remoteStream.value = null;
     
             this.pendingIceCandidates = [];
-    
-            // Emit disconnect event to server if needed
-            if (this._io) {
-                this._io.emit('peer-disconnected', {
-                    roomId: this.currentRoomId.value
-                });
-            }
+
     
             console.log('Peer connection and related resources cleared successfully');
         } catch (error) {
@@ -476,6 +486,7 @@ export default class SocketClient{
         }
     }
     
+
 // -------------- WEBRTC -------------------
 
 
@@ -520,14 +531,16 @@ export default class SocketClient{
         isVideoEnabled : boolean
     }){
         this.currentRoomId.value = roomId
+        this.currentUserId.value = userId
         this.ioConnect()
         await this._io.emit('Event:join-room',roomId,userId,userObj)
     }
     public async leaveRoom(roomId:string,userId:string){
         this.currentRoomId.value = ''
-        // this.clearPeerConnection()
+        this.currentUserId.value = ''
+        this.clearPeerConnection()
         await this._io.emit('Event:leave-room',roomId,userId)
-        this._io.emit('Event:resetPeerConnectionForRoom',roomId)
+        // this._io.emit('Event:resetPeerConnectionForRoom',roomId)
         await this.ioDisconnect()
     }
     

@@ -1,11 +1,4 @@
-interface ConnectionDetails {
-    offer: RTCSessionDescriptionInit;
-    answer: RTCSessionDescriptionInit;
-    offererId: string;
-    offererSocketId: string;
-    answererId: string;
-    answerSocketId: string;
-}
+
 
 export default class RoomManager {
     public redis
@@ -31,6 +24,17 @@ export default class RoomManager {
         return `user:${roomId}:${userId}`
     }
     
+
+    /**
+     * Get ConnectionData key
+     * @param roomId string
+     * @return string
+     */
+    getConnectionDataKey(roomId: string): string {
+        return `connectionData:${roomId}`
+    }
+
+
       /**
      * Check if a room exists (regardless of active status)
      * @param roomId string
@@ -492,80 +496,7 @@ export default class RoomManager {
         }
     }
     
+
     
-    private referenceKey(roomId: string): string {
-        const roomKey = this.getRoomKey(roomId)
-        if (!roomKey) {
-            throw new Error(`Room ${roomId} does not exist`);
-        }
-        return `${this.getRoomKey(roomId)}:connection_store`;
-    }
-
-    public async addOffer(roomId: string, offer: Partial<ConnectionDetails>): Promise<void> {
-        const key = this.referenceKey(roomId);
-        const data = await this.redis.get(key) || '{"offers": [], "answers": []}';
-        const connectionData = JSON.parse(data);
-        connectionData.offers = [...(connectionData.offers || []), offer];
-        await this.redis.set(key, JSON.stringify(connectionData));
-        // console.log('Adding offer....', offer);
-    }
-
-    public async addAnswer(roomId: string, answer: Partial<ConnectionDetails>): Promise<void> {
-        const key = this.referenceKey(roomId);
-        const data = await this.redis.get(key) || '{"offers": [], "answers": []}';
-        const connectionData = JSON.parse(data);
-        connectionData.answers = [...(connectionData.answers || []), answer];
-        await this.redis.set(key, JSON.stringify(connectionData));
-        // console.log('Adding answer....', answer);
-    }
-
-    public async getOffers(roomId: string): Promise<Partial<ConnectionDetails>[]> {
-        const key = this.referenceKey(roomId);
-        const data = await this.redis.get(key);
-        console.log('Getting offers....');
-        return data ? JSON.parse(data).offers || [] : [];
-    }
-
-    public async getAnswers(roomId: string): Promise<Partial<ConnectionDetails>[]> {
-        const key = this.referenceKey(roomId);
-        const data = await this.redis.get(key);
-        console.log('Getting answers....');
-        return data ? JSON.parse(data).answers || [] : [];
-    }
-
-    public async removeOffer(roomId: string, offererId: string): Promise<void> {
-        const key = this.referenceKey(roomId);
-        const data = await this.redis.get(key);
-        if (data) {
-            const connectionData = JSON.parse(data);
-            connectionData.offers = connectionData.offers.filter(
-                (offer: Partial<ConnectionDetails>) => offer.offererId !== offererId
-            );
-            await this.redis.set(key, JSON.stringify(connectionData));
-        }
-        console.log('Removing offer....');
-    }
-
-    public async removeAnswer(roomId: string, answererId: string): Promise<void> {
-        const key = this.referenceKey(roomId);
-        const data = await this.redis.get(key);
-        if (data) {
-            const connectionData = JSON.parse(data);
-            connectionData.answers = connectionData.answers.filter(
-                (answer: Partial<ConnectionDetails>) => answer.answererId !== answererId
-            );
-            await this.redis.set(key, JSON.stringify(connectionData));
-        }
-        console.log('Removing answer....');
-    }
-
-    // Optional: Get all connection data for a room
-    public async getRoomConnections(roomId: string): Promise<{
-        offers: Partial<ConnectionDetails>[];
-        answers: Partial<ConnectionDetails>[];
-    }> {
-        const key = this.referenceKey(roomId);
-        const data = await this.redis.get(key);
-        return data ? JSON.parse(data) : { offers: [], answers: [] };
-    }
+ 
 }

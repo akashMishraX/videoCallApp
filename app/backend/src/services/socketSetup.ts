@@ -1,6 +1,6 @@
 import { Server } from 'socket.io'
 import { InitRedis } from './redisSetup'
-import { Socket } from 'dgram';
+
 
 interface ConnectionDetails {
     offer: RTCSessionDescriptionInit;
@@ -12,7 +12,7 @@ interface ConnectionDetails {
 }
 export let participants : any = {}
 
-const {pub,sub,roomManager} = InitRedis()
+const {pub,sub,roomManager,signalingServiceManager} = InitRedis()
 export default class SocketSetup{
     private _io: any;
     private currentRoomId : string = ''
@@ -36,47 +36,74 @@ export default class SocketSetup{
             console.log('User is connected',socket.id)
 
         // -------WEBRTC MANAGEMENT-------
-            // socket.on('Event:clientCreateOffer',async ()=>{
-            //     this._io.to(socket.id).emit('Event:createOffer',
-            //         this.currentRoomId,this.currentUserId,socket.id)
-            // })
             socket.on('Event:offer',async (data:{
-                offer:RTCSessionDescriptionInit
-                roomId:string,
-                offerUserId:string
+                roomId : string,
+                userId : string,
+                offer : RTCSessionDescriptionInit
             })=>{
-                roomManager.addOffer(data.roomId,data)
-                console.log('[Server]:Created offer Saved')
+                console.log('[WEBRTC]:New Created offer recieved',data)
+                await signalingServiceManager.addOffer(data.roomId,data.offer,5*60)
             })
-
             socket.on('Event:answer',async (data:{
-                answer:RTCSessionDescriptionInit,
-                offererId:string,
-                offererSocketId:string,
-                answererId:string,
-                answerSocketId:string,
+                roomId : string,
+                offererSocketId : string,
+                userId : string,
+                userSocketId : string,
+                answer : RTCSessionDescriptionInit
             })=>{
-                console.log('[Server]:Answer recieved and forward to Offerer ')
+                console.log('[WEBRTC]:New Created answer recieved',data)
+                await signalingServiceManager.addAnswer(data.roomId,data.userId,data.answer,5*60)
+                const answer = await signalingServiceManager.getAnswer(data.roomId,data.userId)
                 this._io.to(data.offererSocketId).emit('Event:answer-recieved',{
-                    answer:data.answer,
-                    offererId:data.offererId,
+                    roomId:data.roomId,
                     offererSocketId:data.offererSocketId,
-                    answererId:data.answererId,
-                    answerSocketId:data.answerSocketId,
+                    userId:data.userId,
+                    userSocketId:data.userSocketId,
+                    answer:answer
                 })
-            })
+            });
+
             socket.on('Event:exchangeICEcandidate',async (data:{
-                candidate:RTCIceCandidate,
-                roomId:string,
-                receiverId:string,
-                isofferer:boolean
+                candidate : RTCIceCandidateInit,
+                roomId : string,
+                senderSocketId: string,
+                receiverSocketId : string
+                isOfferer : boolean
             })=>{
-                console.log('[Server]:Exchange ICE candidate',data)
-                this._io.to(data.receiverId).emit('Event:ICEcandidate-recieved',data)
-            })
-            socket.on('Event:resetPeerConnectionForRoom',async (roomId:string)=>{
-                console.log('[Server]:YOO! SERVER RESET PEER CONNECTION FOR ROOM')
-                this._io.to(roomId).emit('Event:resetPeerConnectionForRoom-recieved',roomId)
+                // console.log('[WEBRTC]:New ICE candidate recieved',data)
+                // await signalingServiceManager.addIceCandidate(
+                //     data.roomId,
+                //     data.senderSocketId,
+                //     data.receiverSocketId,
+                //     data.candidate,
+                //     5*60
+                // )
+                // const iceCandidates = await signalingServiceManager.getIceCandidates(
+                //     data.roomId,
+                //     data.senderSocketId,
+                //     data.receiverSocketId
+                // )
+                // for (const candidateObj in iceCandidates){
+                //     const candidate = JSON.parse(iceCandidates[candidateObj])
+                //     console.log('[WEBRTC-TEST]:ICE candidate sent',candidate)
+                //     this._io.to(data.receiverSocketId).emit('Event:ice-candidate-recieved',
+                //         data.roomId,data.senderSocketId,data.receiverSocketId,candidate)
+                // }
+                console.log(`[WEBRTC]:ICE candidate sent by ${data.senderSocketId} to ${data.receiverSocketId}`,data)
+                this._io.to(data.receiverSocketId).emit('Event:ice-candidate-recieved',data.candidate,data.senderSocketId)
+
+            });
+
+            socket.on('Event:changeOfferer',async (data:{
+                roomId:string,
+                newOffererId:string
+                newOffererSocketId:string
+            })=>{
+                console.log('[WEBRTC]:New offerer requested for offer creation')
+                this._io.to(data.newOffererSocketId).emit('Event:createOffer',{
+                    roomId : data.roomId,
+                    userId : data.newOffererId
+                })
             })
         // -------WEBRTC MANAGEMENT-------
 
@@ -116,13 +143,13 @@ export default class SocketSetup{
                 
                 let roomSize = await (await roomManager.extractRoomData(roomId)).users.length
                 //Room size constraint
-                if (roomSize >= 2) {
+                if (roomSize >= 4) {
                     socket.emit('Event:room-error',"You can't join this room")
                     return;
                 }
 
                 // Leave previous room
-                if (this.currentRoomId !== '') {
+                if (this.currentRoomId !== '') {    
                     socket.leave(roomId);
                     const roomSize = await roomManager.getRoomSize(roomId)
                     if(roomSize === 0){
@@ -154,41 +181,40 @@ export default class SocketSetup{
 
                 console.log('User',userId,'joined room',roomId)
 
+                /** HANDLE WEBRTC ON ROOM JOIN 
+                 * 0. When user joins first then it creates an offer and store it and when someone else joins then it sends the offer
+                 * 1. Get all users in room
+                 * 2. asked them to create new offer 
+                 * 3. Send offer to all users in room accept the offerer
+                 * 4. If user leave then signaling data of that user is deleted ,while data for other users are reused from redis server if user in rejoin or new user joins
+                 */
 
-                // HANDLE WEBRTC ON ROOM JOIN
-                const roomData = await roomManager.extractRoomData(roomId)
-                const roomConnection = await roomManager.getRoomConnections(roomId)
-                if(roomData.users.length > 1){
-                    console.log('[Server]:Emitting offer for new member joined in room.')
+                if(roomSize === 1){
+                    this._io.to(socket.id).emit('Event:createOffer',{
+                        roomId : roomId,
+                        userId : userId
+                    })
+                    await signalingServiceManager.changeOfferer(roomId,roomManager)
+                    console.log('[WEBRTC]:Offerer Requested for offer creation',userId)
+                }
+                else{
                     const roomData = await roomManager.extractRoomData(roomId)
-                    for (const user of roomData.users) {
-                        if(user.userId === userId) continue
-                        // this._io.to(user.socketId).emit('Event:updatedICEcandidateReciver',{recieverSocketId:socket.id})
-                        roomConnection.offers.forEach((offer: Partial<ConnectionDetails>) => {
+                    const offerer = await signalingServiceManager.getOfferer(roomId)
+                    const offer = await signalingServiceManager.getOffer(roomId)
+                    for(const user of roomData.users){
+                        if(user.socketId !== offerer){
                             this._io.to(socket.id).emit('Event:offer-recieved',{
-                                offer:offer,
-                                offererId:user.userId,
-                                offererSocketId:user.socketId,
-                                answererId:userId,
-                                answerSocketId:socket.id,
+                                roomId : roomId,
+                                offererSocketId : offerer,
+                                userId : userId,
+                                userSocketId : socket.id,
+                                offer : offer
                             })
-                        })
-                        
+                            console.log('[WEBRTC]:Offerer Send offer to users for their answer.',user.userId)
+                        }
                     }
                 }
-                const existingOffers = roomConnection.offers.filter((offer: Partial<ConnectionDetails>) => offer.offererId === userId);
-
-                if (existingOffers.length === 0) {
-                    console.log('[Server]: Emitting create offer for each new member in the room.');
-                    this._io.to(socket.id).emit('Event:createOffer', {
-                        roomId: roomId,
-                        userId: userId,
-                        socketId: socket.id
-                    });
-                }
-
-                
-                
+                   
                 
             })
 
@@ -223,6 +249,16 @@ export default class SocketSetup{
                     socket.leave(userId);
                     await roomManager.removeUserFromRoom(roomId,userId)
                     
+                    const offerer = await signalingServiceManager.getOfferer(roomId)
+                    if(offerer === userId){
+                        await signalingServiceManager.changeOfferer(roomId,roomManager)
+                        const newOffererId = await signalingServiceManager.getOfferer(roomId)
+                        this._io.to(roomId).emit('Event:offerer-changed',{
+                            roomId,
+                            newOffererId,
+                            newOffererSocketId : socket.id
+                        })
+                    }
                     
                     this._io.to(roomId).emit('Event:room-left',roomId,userId)
                     this._io.to(roomId).emit('Event:room-users',roomId,[])
@@ -245,6 +281,7 @@ export default class SocketSetup{
                 // server emitter form redis to client
                 this._io.emit('Event:message-recieved',JSON.parse(message).message,JSON.parse(message).roomId,JSON.parse(message).userId)
             }
+            
         })
     }  
 }

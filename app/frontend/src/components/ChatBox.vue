@@ -55,56 +55,6 @@ const handleSendMessage = async () => {
   await nextTick()
   scrollToBottom()
 }
-interface userObjInterface {
-  avator : string,
-  isAudioEnabled : boolean,
-  isVideoEnabled : boolean
-}
-const userString = sessionStorage.getItem('user');
-let userPicture = "";
-// Check if the user data exists in sessionStorage
-if (userString) {
-  // Parse the JSON string into an object
-  const userData = JSON.parse(userString);
-
-  // Extract the picture URL
-  userPicture = userData.picture;
-
-  // Log the picture URL
-  console.log(userPicture);
-} else {
-  userPicture = '../assets/user.png';
-  console.log("No user data found in sessionStorage.");
-}
-
-
-
-const handleConnect = async () => {
-  const userData = {
-    avator : userPicture,
-    isAudioEnabled : true,
-    isVideoEnabled : true,
-  } as userObjInterface
-  props.socketClient.joinRoom(props.roomId, props.userId,userData)
-  isConnected.value = true
-}
-
-const handleDisconnect = async (): Promise<void> => {
-  props.socketClient.leaveRoom(props.roomId, props.userId)
-  isConnected.value = false
-  currentUser.value.online = false
-
-  messageQueue.value.push({
-    id: messageQueue.value.length + 1,
-    text: 'You have been disconnected from the chat.',
-    timestamp: new Date(),
-    roomId: null,
-    userId: null
-  })
-
-  await nextTick()
-  scrollToBottom()
-}
 
 const formatTime = (date: Date) => {
   return new Date(date).toLocaleTimeString('en-US', {
@@ -125,10 +75,6 @@ if (!props.roomId && !props.userId) {
 }
 
 onMounted(async() => {
-  if (props.roomId && props.userId) {
-    handleConnect()
-  }
-
   scrollToBottom()
 })
 
@@ -162,7 +108,10 @@ onMounted(async() => {
               <img src="../assets/user.png" :alt="currentUser.name" style="background-color: aliceblue;">
             </div>
             <div class="message-bubble">
-              <div class="message-userid">{{ message.userId?.toLowerCase() }}</div>
+              <div class="message-userid">
+                <span v-if="message.userId===userId">You</span>
+                <span v-else>{{ message.userId?.toLowerCase() }}</span>
+              </div>
               <div class="message-text">{{ message.text }}</div>
               <div class="message-meta">
                 <span class="timestamp">{{ formatTime(message.timestamp) }}</span>

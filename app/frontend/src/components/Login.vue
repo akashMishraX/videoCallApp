@@ -25,12 +25,9 @@
           </div>
 
           <!-- Google Login Button -->
-          <GoogleLogin
-            class="google-button"
-            :callback="callback"
-            :auto-login="true"
-          ></GoogleLogin>
-        
+          <div style="display: flex;justify-content: center; align-items: center;">
+            <GoogleLogin :callback="callback" :auto-login="true" ></GoogleLogin>   
+          </div>  
           <!-- Footer Text -->
           <div class="terms-text">
             <p>By continuing, you agree to our Terms of Service</p>
@@ -42,7 +39,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { GoogleLogin, decodeCredential } from 'vue3-google-login'
 import useAuth from '../composables/useAuth'
@@ -67,12 +64,23 @@ interface GoogleUser {
   jti: string
 }
 
-onMounted(() => {
-  initializeAuth()
-  if (isLogged.value) {
-    router.push('/')
-  }
+
+
+watch(
+  () => isLogged.value,
+  (newValue) => {
+    if (newValue) {
+      router.push('/')
+    }
+  },
+  { immediate: true } // This will run the check immediately on mount too
+)
+
+onMounted(async () => {
+  await initializeAuth()
 })
+
+
 
 const callback = async (response: any) => {
   try {

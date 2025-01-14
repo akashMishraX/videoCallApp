@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, Ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, onUnmounted, ref, Ref } from 'vue'
 import ChatBox from './ChatBox.vue'
 import router from '../App.vue';
 import useAuth from '../composables/useAuth';
@@ -17,16 +17,34 @@ const isAudioEnabled: Ref<boolean> = ref(true)
 const isVideoEnabled: Ref<boolean> = ref(true)
 const isConnected: Ref<boolean> = ref(false)
 const socketClient = new SocketClient()
-
-// const { user } = useAuth()
-
+const count = ref(0)
+sessionStorage.setItem('count', count.value.toString())
 
 onMounted(() => {
   socketClient.loadExistingParticipants(props.roomId)
+  handleConnect()
+  count.value = parseInt(sessionStorage.getItem('count') || '0')
+  count.value++
+  sessionStorage.setItem('count', count.value.toString())
+  console.log('count',count.value)
 })
-
+onload = async () => {
+  count.value = parseInt(sessionStorage.getItem('count') || '0')
+  count.value++
+  sessionStorage.setItem('count', count.value.toString())
+  if(count.value > 1){
+    await handleLeaveCall()
+  }
+  console.log('count',count.value)
+}
+onBeforeUnmount(() => {
+  count.value = 0
+  sessionStorage.removeItem('count')
+  console.log('count',count.value)
+})
 onUnmounted(() => {
   socketClient.loadExistingParticipants(props.roomId)
+  socketClient.leaveRoom(props.roomId, userId.value)
 })
 
 
@@ -92,7 +110,39 @@ const getParticipantStyle = (index: number) => {
     height: '100%'
   }
 }
+interface userObjInterface {
+  avator : string,
+  isAudioEnabled : boolean,
+  isVideoEnabled : boolean
+}
+const userString = sessionStorage.getItem('user');
+let userPicture = "";
+// Check if the user data exists in sessionStorage
+if (userString) {
+  // Parse the JSON string into an object
+  const userData = JSON.parse(userString);
 
+  // Extract the picture URL
+  userPicture = userData.picture;
+
+  // Log the picture URL
+  console.log(userPicture);
+} else {
+  userPicture = '../assets/user.png';
+  console.log("No user data found in sessionStorage.");
+}
+
+
+
+const handleConnect = async () => {
+  const userData = {
+    avator : userPicture,
+    isAudioEnabled : true,
+    isVideoEnabled : true,
+  } as userObjInterface
+  await socketClient.joinRoom(props.roomId, userId.value,userData)
+  // isConnected.value = true
+}
 // Chat visibility state
 const showMessageBox: Ref<boolean> = ref(false)
 const showMessageButton: Ref<boolean> = ref(true)
@@ -114,7 +164,7 @@ const { leaveRoom } = useAuth();
 const handleLeaveCall = async () => {
   console.log('Leaving call...')
   await socketClient.leaveRoom(props.roomId, userId.value)
-  await leaveRoom()
+  leaveRoom()
   router.push('/')
 }
 
@@ -179,7 +229,7 @@ if (!props.roomId && !userId.value) {
     </div>
 
     <div class="chat-container" :class="{ 'chat-container-large': showMessageBox, 'chat-container-small': !showMessageBox }">
-      <ChatBox v-show="showMessageBox" :socketClient="socketClient" :isConnected="isConnected" :roomId="roomId"
+      <ChatBox v-show="showMessageBox"   :socketClient="socketClient" :isConnected="isConnected" :roomId="roomId"
         :userId="userId" />
     </div>
   </div>

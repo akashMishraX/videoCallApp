@@ -1,5 +1,6 @@
 import Redis from 'ioredis'
 import RoomManager from '../redisData/roomManager';
+import SignalingServiceManager from '../redisData/connectionManger';
 
 export function InitRedis(){
     const redisOptions = {
@@ -21,9 +22,11 @@ export function InitRedis(){
     })
 
     const roomManager = new RoomManager(pub)
+    const signalingServiceManager = new SignalingServiceManager(pub)
     return {
         pub,
         sub,
-        roomManager
+        roomManager,
+        signalingServiceManager
     }
 }

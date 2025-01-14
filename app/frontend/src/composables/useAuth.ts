@@ -22,7 +22,7 @@ export default function useAuth() {
     const isLogged: Ref<boolean> = ref(false)
     const user: Ref<GoogleUser | null> = ref(null)  
 
-    const initializeAuth = () => {
+    const initializeAuth = async () => {
         const storedIsLogged = sessionStorage.getItem('isLogged')
         const storedUser = sessionStorage.getItem('user')
         
@@ -69,7 +69,7 @@ export default function useAuth() {
     }
 
     // Function to fetch image and store in sessionStorage
-    function fetchAndStoreImage(imageUrl: string, userObj: GoogleUser) {
+    async function fetchAndStoreImage(imageUrl: string, userObj: GoogleUser) {
         return fetch(imageUrl)
         .then(response => response.blob())
         .then(blob => {
