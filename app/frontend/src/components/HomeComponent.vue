@@ -5,7 +5,7 @@ import generateDashedId from '../../util/generateId'
 import useAuth from '../composables/useAuth'
 
 import { Video, ChevronLeft, ChevronRight, LogOut} from 'lucide-vue-next'
-import SocketClient from '../composables/useSocket'
+
 
 const router = useRouter()
 const isLoading = ref(false)
