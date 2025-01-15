@@ -13,8 +13,6 @@ const props = defineProps<{
 // User state management
 const userId: Ref<string> = ref('')
 const userObj: Ref<any> = ref({})
-const isAudioEnabled: Ref<boolean> = ref(true)
-const isVideoEnabled: Ref<boolean> = ref(true)
 const isConnected: Ref<boolean> = ref(false)
 const socketClient = new SocketClient()
 const count = ref(0)
@@ -152,13 +150,14 @@ const handleShowMessageBox = () => {
   showMessageBox.value = !showMessageBox.value
 }
 
-const toggleAudio = () => {
-  isAudioEnabled.value = !isAudioEnabled.value
-}
+const toggleVideo = async () => {
+  await socketClient.toggleVideo();
+};
 
-const toggleVideo = () => {
-  isVideoEnabled.value = !isVideoEnabled.value
-}
+const toggleAudio = async () => {
+  await socketClient.toggleAudio();
+};
+
 
 const { leaveRoom } = useAuth();
 const handleLeaveCall = async () => {
@@ -189,6 +188,7 @@ if (!props.roomId && !userId.value) {
 </script>
 
 <template>
+  <main>
   <div class="container">
     <div class="video-container" :class="{ 'video-container-small': showMessageBox, 'video-container-large': !showMessageBox }">
       <div class="video-grid" :style="gridStyle">
@@ -196,23 +196,27 @@ if (!props.roomId && !userId.value) {
              :key="participant?.id || index"
              class="video-placeholder" 
              :style="getParticipantStyle(index)">
-          <div v-if="socketClient.localVideo.value" class="videos"> 
+          <div v-if="socketClient.isVideo.value" class="videos"> 
+              <video
+              class="videos"
+              v-show="participant?.userId === userId"
+              :id="participant?.id"
+              :srcObject="socketClient.localVideo.value?.srcObject"
+              autoplay
+              playsinline
+            ></video>
             <video
-            class="videos"
-            v-show="participant?.userId === userId"
-            :id="participant?.id"
-            :srcObject="socketClient.localVideo.value?.srcObject"
-            autoplay
-            playsinline
-          ></video>
-          <video
-            class="videos"
-            v-show="participant?.userId !== userId"
-            :id="participant?.id"
-            :srcObject="socketClient.remoteVideoChild.value?.srcObject"
-            autoplay
-            playsinline
-          ></video>
+              class="videos"
+              v-show="participant?.userId !== userId"
+              :id="participant?.id"
+              :srcObject="socketClient.remoteVideoChild.value?.srcObject"
+              autoplay
+              playsinline
+            ></video>
+            <div class="participant-name">
+              <span v-if="participant?.userId !== userId">{{ participant?.userId }}</span>
+              <span v-else>You</span>
+            </div>
           </div>
           
           <div class="participant-container" v-else>
@@ -236,11 +240,11 @@ if (!props.roomId && !userId.value) {
 
   <div class="controls-container">
     <div class="video-controls">
-      <button class="control-button" :class="{ 'disabled': !isAudioEnabled }" @click="toggleAudio">
+      <button class="control-button" :class="{ 'disabled': !socketClient.isAudio.value }" @click="toggleAudio">
         <img src="../assets/audio-call.png" alt="Toggle audio" class="control-icon">
       </button>
 
-      <button class="control-button" :class="{ 'disabled': !isVideoEnabled }" @click="toggleVideo">
+      <button class="control-button" :class="{ 'disabled': !socketClient.isVideo.value }" @click="toggleVideo">
         <img src="../assets/video-call.png" alt="Toggle video" class="control-icon">
       </button>
 
@@ -253,25 +257,40 @@ if (!props.roomId && !userId.value) {
       <img src="../assets/chat-call.png" alt="Toggle chat" class="control-icon">
     </button>
   </div>
+</main>
 </template>
 
-<style scoped>
+<style >
 :root {
-  background-color: #000000;
+  background-color: #222222
+}
+</style>
+<style scoped>
+
+main{
+  width: 100%;
+  height: 98vh;
+  background-color: #222222;
+  margin: 0;
+  padding: 0;
 }
 .container {
   display: flex;
   height: 90vh;
   min-width: 90vw;
-  background-color: #1a1a1a;
+  background-color: #222222;
   color: white;
   overflow: hidden;
+  margin: 0;
+  padding: 0;
+  border: 10px solid #3b3b3b;
 }
 
 .video-container {
-  background: #1a1a1a;
+  background: #222222;
   transition: width 0.3s ease;
-  flex: 1;
+  overflow: hidden;
+  
 }
 
 .video-grid {
@@ -290,14 +309,15 @@ if (!props.roomId && !userId.value) {
 .videos{
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit:contain;
 }
 
 .video-placeholder {
   position: relative;
-  background: #2a2a2a;
-  border-radius: 8px;
+  background: #222222;
+  border-radius: 1px;
   overflow: hidden;
+
   aspect-ratio: 16/9;
 }
 
@@ -328,7 +348,7 @@ if (!props.roomId && !userId.value) {
   position: absolute;
   bottom: 16px;
   left: 16px;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(61, 61, 61, 0.5);
   padding: 4px 12px;
   border-radius: 4px;
   font-size: 0.875rem;
@@ -336,6 +356,7 @@ if (!props.roomId && !userId.value) {
 
 .chat-container {
   height: 100%;
+  border: 2px solid #535353;
   transition: width 0.3s ease;
 }
 

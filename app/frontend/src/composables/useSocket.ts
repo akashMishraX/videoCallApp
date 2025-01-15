@@ -41,19 +41,21 @@ export default class SocketClient{
 
     private pendingIceCandidates:  RTCIceCandidate[] = [];
 
+    public isVideo : Ref<boolean> = ref(true)
+    public isAudio : Ref<boolean> = ref(false)
+
     constructor(){
-        const SOCKET_URL = import.meta.env.VITE_SOCKET_URL
+        const SOCKET_URL = import.meta.env.VITE_BACKEND_URL
         this._io = io(SOCKET_URL,{
             transports: ['websocket'],
             autoConnect: true,
         })
         //Automatically update connection state
-        
+        console.log('Socket client initialized:- ',SOCKET_URL)
         this.initializeConnectionListener()
         this.initializeWebRTCListeners()
         this.initializeMessageListener()
     }
-
     private initializeConnectionListener() {
         this._io.on('connect', () => {
             this.isDisconnected = false;
@@ -65,7 +67,6 @@ export default class SocketClient{
             console.log('Disconnected from the server');
         });
     }
-
     private initializeMessageListener(){
         if (!this.initialized) {
             const io = this._io
@@ -190,7 +191,7 @@ export default class SocketClient{
     }
     private async handleCreateOffer() {
         try {
-            await this.fecthUserMedia()
+            await this.fecthUserMedia(this.isVideo.value,this.isAudio.value)
             await this.handlePeerConnection(true)
 
             //CREATE OFFER
@@ -207,7 +208,7 @@ export default class SocketClient{
         offererSocketId : string
     }) {
         try {
-            await this.fecthUserMedia()
+            await this.fecthUserMedia(this.isVideo.value,this.isAudio.value)
             await this.handlePeerConnection(false,{offer: data.offer},{
                 receiverId : data.offererSocketId
             })
@@ -240,7 +241,6 @@ export default class SocketClient{
             console.error('Error setting remote description:', error);
         }
     }
-
     private async handleIceCandidate(candidate: RTCIceCandidate) {
         
         try {
@@ -257,7 +257,8 @@ export default class SocketClient{
             }
         }
     }
-    private async fecthUserMedia(): Promise<void> {
+
+    private async fecthUserMedia(isvideo:boolean,isaudio:boolean): Promise<void> {
         try {
             // Check if browser supports getUserMedia
             if (!navigator.mediaDevices?.getUserMedia) {
@@ -266,8 +267,8 @@ export default class SocketClient{
     
             // Store stream for later cleanup
             this.localStream.value = await navigator.mediaDevices.getUserMedia({
-                video: true,
-                audio: false,
+                video: isvideo,
+                audio: isaudio,
             });
     
             // Create and configure video element
@@ -312,6 +313,46 @@ export default class SocketClient{
 
         }
     }
+    public async toggleVideo(): Promise<void> {
+        if (this.localStream.value) {
+            const videoTracks = this.localStream.value.getVideoTracks();
+            videoTracks.forEach(track => {
+                track.enabled = !track.enabled;
+            });
+            this.isVideo.value = !this.isVideo.value;
+
+            // If turning video back on and no video tracks exist, refetch stream
+            if (this.isVideo.value && videoTracks.length === 0) {
+                await this.fecthUserMedia(this.isAudio.value, this.isVideo.value);
+                if(this.localVideo.value && this.localStream.value){
+                    this.localStream.value?.getTracks().forEach(track => {
+                        this.peerConnection.value!.addTrack(track, this.localStream.value!)
+                    })
+                }
+            }
+        }
+    }
+    public async toggleAudio(): Promise<void> {
+        if (this.localStream.value) {
+            const audioTracks = this.localStream.value.getAudioTracks();
+            audioTracks.forEach(track => {
+                track.enabled = !track.enabled;
+            });
+            this.isAudio.value = !this.isAudio.value;
+
+            // If turning audio back on and no audio tracks exist, refetch stream
+            if (this.isAudio.value && audioTracks.length === 0) {
+                await this.fecthUserMedia(this.isAudio.value, this.isVideo.value);
+                if(this.localVideo.value && this.localStream.value){
+                    this.localStream.value?.getTracks().forEach(track => {
+                        this.peerConnection.value!.addTrack(track, this.localStream.value!)
+                    })
+                }
+            }
+        }
+    }
+
+
     private sendPendingIceCandidates(receiverSocketId: string,senderSocketId:string) {
         try {
             this.pendingIceCandidates.forEach(candidate => {
@@ -486,7 +527,6 @@ export default class SocketClient{
         }
     }
     
-
 // -------------- WEBRTC -------------------
 
 

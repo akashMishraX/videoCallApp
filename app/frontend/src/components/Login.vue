@@ -101,7 +101,7 @@ const callback = async (response: any) => {
 
 /* Base Layout */
 .login-page {
-  min-height: 90vh;
+  min-height: 95vh;
   background: linear-gradient(to bottom, #f9fafb, #ffffff);
   display: flex;
   align-items: center;

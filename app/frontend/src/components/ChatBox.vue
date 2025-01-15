@@ -142,7 +142,7 @@ onMounted(async() => {
   width: 100%;
   /* max-width: 500px; */
   height: 90vh;
-  background-color: #1a1a1a;
+  background-color: #222222;
   display: flex;
   flex-direction: column;
 }
