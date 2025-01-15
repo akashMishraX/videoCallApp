@@ -277,10 +277,10 @@ export default class SocketClient{
                 this.localVideo.value.muted = true; // Mute local video to prevent feedback
                 this.localVideo.value.playsInline = true; // Better mobile support
             }
-    
+            
             // Set stream as source
             this.localVideo.value.srcObject = this.localStream.value;
-    
+            
             // Handle autoplay
             try {
                 await this.localVideo.value.play();
@@ -320,18 +320,40 @@ export default class SocketClient{
                 track.enabled = !track.enabled;
             });
             this.isVideo.value = !this.isVideo.value;
-
-            // If turning video back on and no video tracks exist, refetch stream
+    
+            // If turning video back on and no video tracks exist
             if (this.isVideo.value && videoTracks.length === 0) {
-                await this.fecthUserMedia(this.isAudio.value, this.isVideo.value);
-                if(this.localVideo.value && this.localStream.value){
-                    this.localStream.value?.getTracks().forEach(track => {
-                        this.peerConnection.value!.addTrack(track, this.localStream.value!)
-                    })
+                const newStream = await navigator.mediaDevices.getUserMedia({
+                    video: true,
+                    audio: this.isAudio.value
+                });
+    
+                // Update local stream and video element
+                if (this.localVideo.value) {
+                    this.localStream.value = newStream;
+                    this.localVideo.value.srcObject = newStream;
                 }
+    
+                // Update peer connection
+                const senders = this.peerConnection.value?.getSenders();
+                this.localStream.value.getTracks().forEach((track) => {
+                    const sender = senders?.find(s => s.track?.kind === track.kind);
+                    if (sender) {
+                        sender.replaceTrack(track);
+                    } else {
+                        this.peerConnection.value?.addTrack(track, this.localStream.value!);
+                    }
+                });
+    
+                // Trigger renegotiation
+                // const offer = await this.peerConnection.value!.createOffer();
+                // await this.peerConnection.value!.setLocalDescription(offer);
+                // Send offer to remote peer (implementation required)
             }
         }
     }
+    
+    
     public async toggleAudio(): Promise<void> {
         if (this.localStream.value) {
             const audioTracks = this.localStream.value.getAudioTracks();
@@ -339,37 +361,39 @@ export default class SocketClient{
                 track.enabled = !track.enabled;
             });
             this.isAudio.value = !this.isAudio.value;
-
-            // If turning audio back on and no audio tracks exist, refetch stream
+    
+            // If turning audio back on and no audio tracks exist
             if (this.isAudio.value && audioTracks.length === 0) {
-                await this.fecthUserMedia(this.isAudio.value, this.isVideo.value);
-                if(this.localVideo.value && this.localStream.value){
-                    this.localStream.value?.getTracks().forEach(track => {
-                        this.peerConnection.value!.addTrack(track, this.localStream.value!)
-                    })
+                const newStream = await navigator.mediaDevices.getUserMedia({
+                    audio: true,
+                    video: this.isVideo.value
+                });
+    
+                // Update local stream
+                if (this.localVideo.value) {
+                    this.localStream.value = newStream;
+                    this.localVideo.value.srcObject = newStream;
                 }
+    
+                // Update peer connection
+                const senders = this.peerConnection.value?.getSenders();
+                this.localStream.value.getTracks().forEach((track) => {
+                    const sender = senders?.find(s => s.track?.kind === track.kind);
+                    if (sender) {
+                        sender.replaceTrack(track);
+                    } else {
+                        this.peerConnection.value?.addTrack(track, this.localStream.value!);
+                    }
+                });
+    
+                // Trigger renegotiation
+                // const offer = await this.peerConnection.value!.createOffer();
+                // await this.peerConnection.value!.setLocalDescription(offer);
+                // Send offer to remote peer (implementation required)
             }
         }
     }
-
-
-    private sendPendingIceCandidates(receiverSocketId: string,senderSocketId:string) {
-        try {
-            this.pendingIceCandidates.forEach(candidate => {
-                this._io.emit('Event:exchangeICEcandidate', {
-                    candidate: candidate,
-                    roomId: this.currentRoomId.value,
-                    senderSocketId: senderSocketId,
-                    receiverSocketId: receiverSocketId,
-                    isofferer: true
-                });
-               
-           })
-            this.pendingIceCandidates = [];
-        } catch (error) {
-            console.error('Error sending pending ICE candidates:', error);
-        }
-    }
+    
     private async handlePeerConnection(isofferer:boolean,offerObj?:{offer:RTCSessionDescriptionInit},metadata?:{receiverId:string}) {
         try { 
             
@@ -409,7 +433,6 @@ export default class SocketClient{
                 }
             }
         
-
             // Handling Remote Stream
             this.peerConnection.value.ontrack = (event) => {
                 console.log('Track found:', event);
@@ -431,7 +454,7 @@ export default class SocketClient{
               
                     
                 this.remoteVideoChild.value = document.createElement('video');
-                this.remoteVideoChild.value.srcObject = this.localStream.value;
+                this.remoteVideoChild.value.srcObject = this.remoteStream.value;
                 this.remoteVideoChild.value.autoplay = true;
                 this.remoteVideoChild.value.playsInline = true;
                 this.remoteVideoChild.value.className = 'videos';
@@ -452,7 +475,23 @@ export default class SocketClient{
         }
         
     }
-
+    private sendPendingIceCandidates(receiverSocketId: string,senderSocketId:string) {
+        try {
+            this.pendingIceCandidates.forEach(candidate => {
+                this._io.emit('Event:exchangeICEcandidate', {
+                    candidate: candidate,
+                    roomId: this.currentRoomId.value,
+                    senderSocketId: senderSocketId,
+                    receiverSocketId: receiverSocketId,
+                    isofferer: true
+                });
+               
+           })
+            this.pendingIceCandidates = [];
+        } catch (error) {
+            console.error('Error sending pending ICE candidates:', error);
+        }
+    }
     public async clearPeerConnection() {
         try {
             // Stop all tracks in local stream

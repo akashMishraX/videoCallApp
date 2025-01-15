@@ -48,6 +48,8 @@ onUnmounted(() => {
 
 
 
+
+
 // Grid layout for participants
 const gridStyle = computed(() => {
   const participants = socketClient.roomData?.value || []
@@ -130,6 +132,25 @@ if (userString) {
   console.log("No user data found in sessionStorage.");
 }
 
+const shouldShowVideo = (participantId: string) => {
+  if (participantId === userId.value) {
+    // Local user
+    return socketClient.localVideo.value && socketClient.isVideo.value;
+  } else {
+    // Remote user
+    return socketClient.remoteVideoChild.value;
+  }
+};
+
+const getVideoSource = (participantId:string) => {
+  if (participantId === userId.value) {
+    // Local user
+    return socketClient.localVideo.value?.srcObject;
+  } else {
+    // Remote user
+    return socketClient.remoteVideoChild.value?.srcObject;
+  }
+};
 
 
 const handleConnect = async () => {
@@ -196,38 +217,24 @@ if (!props.roomId && !userId.value) {
              :key="participant?.id || index"
              class="video-placeholder" 
              :style="getParticipantStyle(index)">
-          <div v-if="socketClient.isVideo.value" class="videos"> 
-              <video
-              class="videos"
-              v-show="participant?.userId === userId"
-              :id="participant?.id"
-              :srcObject="socketClient.localVideo.value?.srcObject"
-              autoplay
-              playsinline
-            ></video>
-            <video
-              class="videos"
-              v-show="participant?.userId !== userId"
-              :id="participant?.id"
-              :srcObject="socketClient.remoteVideoChild.value?.srcObject"
-              autoplay
-              playsinline
-            ></video>
-            <div class="participant-name">
-              <span v-if="participant?.userId !== userId">{{ participant?.userId }}</span>
-              <span v-else>You</span>
-            </div>
-          </div>
-          
-          <div class="participant-container" v-else>
-            <div class="avatar">
-              <img src="../assets/user.png" :alt="participant?.userId">
-            </div>
-            <div class="participant-name">
-              <span v-if="participant?.userId !== userId">{{ participant?.userId }}</span>
-              <span v-else>You</span>
-            </div>
-          </div>
+
+              <div class="participant-container"  v-show="socketClient.localVideo.value">
+                <video
+                class="videos"
+                v-if="shouldShowVideo(participant.userId)"
+                :id="participant?.id"
+                :srcObject="getVideoSource(participant.userId)"
+                autoplay
+                playsinline
+                ></video>
+                <div class="avatar" v-else>
+                  <img  src="../assets/user.png" :alt="participant?.userId" >
+                </div>
+                <div class="participant-name">
+                  <span v-if="participant?.userId !== userId">{{ participant?.userId }}</span>
+                  <span v-else>You</span>
+                </div>
+              </div>
         </div>
       </div>
     </div>
