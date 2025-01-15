@@ -374,6 +374,7 @@ export default class SocketClient{
                 if (this.localVideo.value) {
                     this.localStream.value = newStream;
                     this.localVideo.value.srcObject = newStream;
+                    this.localVideo.value.muted = true;
                 }
     
                 // Update peer connection
@@ -386,11 +387,6 @@ export default class SocketClient{
                         this.peerConnection.value?.addTrack(track, this.localStream.value!);
                     }
                 });
-    
-                // Trigger renegotiation
-                // const offer = await this.peerConnection.value!.createOffer();
-                // await this.peerConnection.value!.setLocalDescription(offer);
-                // Send offer to remote peer (implementation required)
             }
         }
     }
