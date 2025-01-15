@@ -51,7 +51,9 @@ export default class SocketClient{
             autoConnect: true,
         })
         //Automatically update connection state
-        console.log('Socket client initialized:- ',SOCKET_URL)
+        if(SOCKET_URL){
+            console.log('Got backend url')
+        }
         this.initializeConnectionListener()
         this.initializeWebRTCListeners()
         this.initializeMessageListener()
@@ -117,6 +119,8 @@ export default class SocketClient{
         }
     }
 // ------------- WEBRTC -----------------
+
+
     private async initializeWebRTCListeners(){
         const socket = this._io
 
@@ -257,7 +261,6 @@ export default class SocketClient{
             }
         }
     }
-
     private async fecthUserMedia(isvideo:boolean,isaudio:boolean): Promise<void> {
         try {
             // Check if browser supports getUserMedia
@@ -352,8 +355,6 @@ export default class SocketClient{
             }
         }
     }
-    
-    
     public async toggleAudio(): Promise<void> {
         if (this.localStream.value) {
             const audioTracks = this.localStream.value.getAudioTracks();
@@ -393,7 +394,6 @@ export default class SocketClient{
             }
         }
     }
-    
     private async handlePeerConnection(isofferer:boolean,offerObj?:{offer:RTCSessionDescriptionInit},metadata?:{receiverId:string}) {
         try { 
             
@@ -432,7 +432,6 @@ export default class SocketClient{
                     }
                 }
             }
-        
             // Handling Remote Stream
             this.peerConnection.value.ontrack = (event) => {
                 console.log('Track found:', event);
@@ -448,11 +447,9 @@ export default class SocketClient{
                             console.log(`Duplicate track ignored: kind=${track.kind}, id=${track.id}`);
                         }
                     });
-                });
-            
+                }); 
                 // Ensure remote video is added to DOM correctly
-              
-                    
+     
                 this.remoteVideoChild.value = document.createElement('video');
                 this.remoteVideoChild.value.srcObject = this.remoteStream.value;
                 this.remoteVideoChild.value.autoplay = true;
@@ -461,9 +458,7 @@ export default class SocketClient{
                 this.remoteVideoChild.value.style.display = 'block';
 
                 console.log('Added remote video:', this.remoteVideoChild.value);
-                        
-                    
-                
+   
             };
             if(offerObj){
                 console.log(offerObj!.offer)
@@ -565,7 +560,8 @@ export default class SocketClient{
             console.error('Error during peer connection cleanup:', error);
         }
     }
-    
+
+
 // -------------- WEBRTC -------------------
 
 

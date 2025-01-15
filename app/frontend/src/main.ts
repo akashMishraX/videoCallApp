@@ -6,7 +6,9 @@ import router from './App.vue';
 import vue3GoogleLogin from 'vue3-google-login'
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID 
-console.log(CLIENT_ID)
+if(CLIENT_ID){
+    console.log('Got Oauth client id')
+}
 createApp(App)
     .use(vue3GoogleLogin,{
         clientId:CLIENT_ID
