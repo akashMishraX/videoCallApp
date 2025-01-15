@@ -52,7 +52,7 @@ export default class SocketClient{
         })
         //Automatically update connection state
         if(SOCKET_URL){
-            console.log('Got backend url:-'SOCKET_URL)
+            console.log('Got backend url:-',SOCKET_URL)
         }
         this.initializeConnectionListener()
         this.initializeWebRTCListeners()
