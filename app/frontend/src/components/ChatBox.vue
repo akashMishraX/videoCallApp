@@ -148,7 +148,12 @@ onMounted(async() => {
   display: flex;
   flex-direction: column;
 }
-
+@media (max-width: 900px) {
+  .chat-container {
+    width: 100vw;
+    height: 85vh;
+  }
+}
 .chat-header {
   padding: 1rem;
   background-color: #1a1a1a;
