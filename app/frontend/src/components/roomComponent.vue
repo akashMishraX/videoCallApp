@@ -356,7 +356,7 @@ main{
 }
 .container {
   display: flex;
-  height: 90vh;
+  height: 90%;
   min-width: 90vw;
   background-color: #222222;
   color: white;
@@ -470,11 +470,12 @@ main{
 }
 .controls-container {
   position: fixed;
-  bottom: 20px;
+  height: 10%;
   left: 0;
   right: 0;
   display: flex;
   justify-content: center;
+  align-items: center;
   padding: 0 20px;
 }
 
