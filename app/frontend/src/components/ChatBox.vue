@@ -21,6 +21,8 @@ const props = defineProps<{
   isConnected: boolean
   roomId: string
   userId: string
+  handleShowMessageBox: () => void
+  showMessageButton: boolean
 }>()
 
 // const socketClient = new SocketClient
@@ -92,10 +94,10 @@ onMounted(async() => {
               <img :src="currentUser.avatar" :alt="currentUser.name">
             </div> -->
           <div class="user-details">
-            <h3 style="margin-left: 15px;">Message Box</h3>
-            <!-- <span :class="['status', { 'online': isConnected }]">
-              {{ isConnected ? 'Online' : 'Offline' }}
-            </span> -->
+            <h3 class="box-detail" style="margin-left: 15px;">Message Box</h3>
+            <button @click="props.handleShowMessageBox" v-show="props.showMessageButton" class="close-button">
+                <span>X</span>
+            </button>
           </div>
         </div>
       </div>
@@ -176,14 +178,43 @@ onMounted(async() => {
   height: 100%;
   object-fit: cover;
 }
-
-.user-details h3 {
-  color: #fff;
+.user-info{
+  width: 100%;
+}
+.user-details  {
+  display: flex;
+  justify-content: space-between; /* Pushes items to opposite ends */
+  align-items: center; /* Vertically aligns items */
+  padding: 10px;
+  background-color: #1a1a1a;
+  color: white;
+  width: 100%;
+}
+.box-detail{
+  color: #ffffff;
   margin: 0;
   font-size: 1rem;
-  font-weight: 500;
+  font-weight: 500;;
 }
-
+.close-button {
+  background-color: #333333;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  width: 60px;
+  transition: all 0.3s ease-in-out;
+  height: 40px;
+  font-size: large;
+  font-weight: bolder;
+}
+.close-button:hover{
+  transform: scale(1.1);
+  background-color: #202020;
+  transition: all 0.3s ease-in;
+  /* border : 1px solid #292929; */
+}
 .status {
   font-size: 0.8rem;
   color: #4CAF50;
@@ -193,14 +224,7 @@ onMounted(async() => {
   color: #4CAF50;
 }
 
-.disconnect-button {
-  background-color: #ff423c;
-  color: white;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  cursor: pointer;
-}
+
 
 .messages-container {
   flex: 1;
@@ -327,5 +351,9 @@ input::placeholder {
 .messages-container::-webkit-scrollbar-thumb {
   background-color: #404040;
   border-radius: 3px;
+}
+
+@media (max-width: 1250px) {
+  
 }
 </style>

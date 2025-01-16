@@ -25,6 +25,8 @@ onMounted(() => {
   count.value++
   sessionStorage.setItem('count', count.value.toString())
   console.log('count',count.value)
+
+  window.addEventListener('resize', () => gridStyle.value)
 })
 onload = async () => {
   count.value = parseInt(sessionStorage.getItem('count') || '0')
@@ -43,18 +45,44 @@ onBeforeUnmount(() => {
 onUnmounted(() => {
   socketClient.loadExistingParticipants(props.roomId)
   socketClient.leaveRoom(props.roomId, userId.value)
+  window.removeEventListener('resize', () => gridStyle.value)
 })
-
-
-
-
 
 
 // Grid layout for participants
 const gridStyle = computed(() => {
   const participants = socketClient.roomData?.value || []
   const count = participants.length || 0
+  const width = window.innerWidth
 
+  // Mobile layout
+  if (width < 640) {
+    if (count === 1) {
+      return {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '100%',
+        height: '100vh',
+        padding: '4px',
+        boxSizing: 'border-box' as const
+      }
+    }
+    
+    return {
+      display: 'grid',
+      gridTemplateColumns: '1fr',
+      gridTemplateRows: `repeat(${count}, minmax(200px, 1fr))`,
+      gap: '4px',
+      width: '100%',
+      height: 'auto',
+      padding: '4px',
+      boxSizing: 'border-box' as const,
+      minHeight: '100vh'
+    }
+  }
+  
+  // Desktop/Tablet layout
   let cols: number
   let rows: number
 
@@ -64,51 +92,89 @@ const gridStyle = computed(() => {
   } else if (count === 2) {
     cols = 2
     rows = 1
-  } else if (count === 3 || count === 4) {
+  } else if (count <= 4) {
     cols = 2
     rows = 2
+  } else if (count <= 6) {
+    cols = 3
+    rows = 2
+  } else if (count <= 9) {
+    cols = 3
+    rows = 3
+  } else if (count <= 12) {
+    cols = 4
+    rows = 3
+  } else if (count <= 16) {
+    cols = 4
+    rows = 4
   } else {
-    cols = Math.ceil(Math.sqrt(count))
-    rows = Math.ceil(count / cols)
+    cols = 5
+    rows = Math.ceil(count / 5)
   }
 
   return {
     display: 'grid',
     gridTemplateColumns: `repeat(${cols}, 1fr)`,
     gridTemplateRows: `repeat(${rows}, 1fr)`,
-    gap: '1rem',
+    gap: '8px',
     width: '100%',
-    height: '100%',
-    padding: '1rem',
-    aspectRatio: `${cols}/${rows}`
+    height: '100vh',
+    padding: '8px',
+    boxSizing: 'border-box' as const
   }
 })
 
-const getParticipantStyle = (index: number) => {
+const getParticipantStyle = () => {
   const participants = socketClient.roomData?.value || []
   const count = participants.length || 0
+  const width = window.innerWidth
+
+  // Mobile styles
+  if (width < 640) {
+    if (count === 1) {
+      return {
+        width: '100%',
+        aspectRatio: '16/9',
+        maxHeight: '40vh', // Limit height for better mobile view
+        objectFit: 'fill' as const,
+        overflow: 'hidden' as const,
+        position: 'relative' as const
+      }
+    }
+
+    return {
+      width: '100%',
+      height: '100%',
+      minHeight: '200px',
+      maxHeight: '300px',
+      aspectRatio: '16/9',
+      objectFit: 'cover' as const,
+      overflow: 'hidden' as const,
+      position: 'relative' as const
+    }
+  }
+
+  // Desktop/Tablet styles
+  const baseStyle = {
+    width: '100%',
+    height: '100%',
+    minHeight: '180px',
+    objectFit: 'cover' as const,
+    overflow: 'hidden' as const,
+    position: 'relative' as const,
+    aspectRatio: '16/9'
+  }
 
   if (count === 1) {
     return {
-      width: '100%',
-      height: '100%'
-    }
-  } else if (count === 4 && index === 2) {
-    return {
-      gridColumn: 'span 2',
-      width: '100%'
-    }
-  } else if (count === 5 && index === count - 1) {
-    return {
-      gridColumn: 'span 2',
-      width: '100%'
+      ...baseStyle,
+      maxHeight: '85vh',
+      width: '90%',
+      margin: '0 auto'
     }
   }
 
-  return {
-    width: '100%',
-    height: '100%'
-  }
+  return baseStyle
 }
 interface userObjInterface {
   avator : string,
@@ -205,7 +271,6 @@ if (!props.roomId && !userId.value) {
 
 
 
-
 </script>
 
 <template>
@@ -216,7 +281,7 @@ if (!props.roomId && !userId.value) {
         <div v-for="(participant, index) in (socketClient.roomData?.value || [])" 
              :key="participant?.id || index"
              class="video-placeholder" 
-             :style="getParticipantStyle(index)">
+             :style="getParticipantStyle()">
 
               <div class="participant-container"  v-show="socketClient.localVideo.value">
                 <video
@@ -241,7 +306,7 @@ if (!props.roomId && !userId.value) {
 
     <div class="chat-container" :class="{ 'chat-container-large': showMessageBox, 'chat-container-small': !showMessageBox }">
       <ChatBox v-show="showMessageBox"   :socketClient="socketClient" :isConnected="isConnected" :roomId="roomId"
-        :userId="userId" />
+        :userId="userId"  :handleShowMessageBox="handleShowMessageBox" :showMessageButton="showMessageButton"/>
     </div>
   </div>
 
@@ -260,6 +325,14 @@ if (!props.roomId && !userId.value) {
       </button>
     </div>
 
+    <div id="notification" class="notification" v-show="socketClient.isNewMsg.value && !showMessageBox">
+      <div v-show="socketClient.isNewMsg.value && !showMessageBox">
+        <span v-show="socketClient.newMessage.value.userId !== userId" style="display: flex;gap: 10px; justify-content: center;align-items: center; transition: all 0.5s ease-in-out;">
+          <span style="font-size: 20px; color: white; font-style: italic;">{{ socketClient.newMessage.value.userId }}:-</span>
+          <span style="font-size: 30px; color: white; font-style:normal;">{{ socketClient.newMessage.value.msg }}</span>
+        </span>
+      </div>
+    </div>
     <button v-show="showMessageButton" class="control-button chat" @click="handleShowMessageBox">
       <img src="../assets/chat-call.png" alt="Toggle chat" class="control-icon">
     </button>
@@ -291,13 +364,19 @@ main{
   margin: 0;
   padding: 0;
   border: 10px solid #3b3b3b;
+  
 }
 
+
 .video-container {
+  flex: 1;
   background: #222222;
   transition: width 0.3s ease;
   overflow: hidden;
-  
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column
 }
 
 .video-grid {
@@ -315,8 +394,9 @@ main{
 
 .videos{
   width: 100%;
-  height: 100%;
+  height: 150%;
   object-fit:contain;
+  transform: scaleX(-1)
 }
 
 .video-placeholder {
@@ -374,7 +454,20 @@ main{
 .chat-container-small {
   width: 0%;
 }
+@media (max-width: 900px) {
+  .video-container-small {
+    width: 0%;
+  }
 
+  .chat-container-large {
+    width: 100%;
+  }
+  .videos{
+    object-fit: cover;
+  }
+  
+  
+}
 .controls-container {
   position: fixed;
   bottom: 20px;
@@ -427,4 +520,21 @@ main{
   width: 24px;
   height: 24px;
 }
+
+
+.notification {
+  position: fixed;
+  bottom: 80px;
+  right: 30px;
+  background-color: #3f52ff;
+  min-width:fit-content;
+  color: rgb(0, 0, 0);
+  padding: 15px;
+  border-radius: 5px;
+  box-shadow: 0 4px 6px rgba(49, 49, 49, 0.1);
+  opacity: 1;
+  transition: opacity 1s ease, bottom 1s ease;
+}
+
+
 </style>

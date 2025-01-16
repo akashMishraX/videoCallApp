@@ -14,6 +14,9 @@ export default class SocketClient{
 
     public roomData : Ref<any> = ref(null);
 
+    public newMessage : Ref<any> = ref({});
+    public isNewMsg : Ref<boolean> = ref(false);
+
     private peerConnectionConfig: RTCConfiguration = {
         iceServers: [
             {
@@ -90,8 +93,15 @@ export default class SocketClient{
                     roomId,
                     userId
                 } as Message
-
-                
+                this.newMessage.value = {
+                    userId: data.userId,
+                    msg: data.text
+                }
+                this.isNewMsg.value = true
+                setTimeout(() => {
+                    this.newMessage.value = {}
+                    this.isNewMsg.value = false
+                },4*1000)
                 this.messageQueue.push(data)
                 console.log('Client recieved message',data)
 
