@@ -25,7 +25,7 @@ export function InitRedis(){
     sub.on('connect',()=>{
         console.log('Sub connected')
     })
-
+    pub.flushall()
     const roomManager = new RoomManager(pub)
     const signalingServiceManager = new SignalingServiceManager(pub)
 

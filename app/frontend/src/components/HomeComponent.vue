@@ -158,6 +158,7 @@ onUnmounted(() => {
                   type="text"
                   placeholder="Enter a code or link"
                   class="join-input"
+                  v-on:keyup.enter="joinExistingRoom"
                 >
                 <button
                   @click="joinExistingRoom"
@@ -612,5 +613,11 @@ main{
 .icon {
   width: 1.25rem;
   height: 1.25rem;
+}
+
+@media (min-width: 640px) {
+  .right-column{
+    display: hidden;
+  }
 }
 </style>
