@@ -145,7 +145,7 @@ export default class SocketSetup{
                 
                 let roomSize = await (await roomManager.extractRoomData(roomId)).users.length
                 //Room size constraint
-                if (roomSize >= 4) {
+                if (roomSize >= 2) {
                     socket.emit('Event:room-error',"You can't join this room")
                     return;
                 }

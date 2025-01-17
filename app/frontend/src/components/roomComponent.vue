@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, onUnmounted, ref, Ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, onUnmounted, reactive, ref, Ref } from 'vue'
 import ChatBox from './ChatBox.vue'
 import router from '../App.vue';
 import useAuth from '../composables/useAuth';
@@ -71,14 +71,14 @@ const gridStyle = computed(() => {
     
     return {
       display: 'grid',
-      gridTemplateColumns: '1fr',
-      gridTemplateRows: `repeat(${count}, minmax(200px, 1fr))`,
-      gap: '4px',
+      gridTemplateColumns: `repeat(auto-fit, minmax(200px, 1fr))`,
+      gap: '8px',
       width: '100%',
       height: 'auto',
-      padding: '4px',
+      padding: '8px',
       boxSizing: 'border-box' as const,
-      minHeight: '100vh'
+      minHeight: '100vh',
+      overflowY: 'auto' as const, // Allow scrolling for many participants
     }
   }
   
@@ -86,42 +86,18 @@ const gridStyle = computed(() => {
   let cols: number
   let rows: number
 
-  if (count <= 1) {
-    cols = 1
-    rows = 1
-  } else if (count === 2) {
-    cols = 2
-    rows = 1
-  } else if (count <= 4) {
-    cols = 2
-    rows = 2
-  } else if (count <= 6) {
-    cols = 3
-    rows = 2
-  } else if (count <= 9) {
-    cols = 3
-    rows = 3
-  } else if (count <= 12) {
-    cols = 4
-    rows = 3
-  } else if (count <= 16) {
-    cols = 4
-    rows = 4
-  } else {
-    cols = 5
-    rows = Math.ceil(count / 5)
-  }
+  cols = Math.min(5, Math.ceil(Math.sqrt(count))); // Limit to 5 columns max
+  rows = Math.ceil(count / cols);
 
   return {
     display: 'grid',
-    gridTemplateColumns: `repeat(${cols}, 1fr)`,
-    gridTemplateRows: `repeat(${rows}, 1fr)`,
+    gridTemplateColumns: `repeat(auto-fit, minmax(200px, 1fr))`,
     gap: '8px',
     width: '100%',
-    height: '100vh',
+    height: `calc(100vh - 50px)`, // Adjust for headers/footers
     padding: '8px',
-    boxSizing: 'border-box' as const
-  }
+    boxSizing: 'border-box' as const,
+  };
 })
 
 const getParticipantStyle = () => {
@@ -136,7 +112,7 @@ const getParticipantStyle = () => {
         width: '100%',
         aspectRatio: '16/9',
         maxHeight: '40vh', // Limit height for better mobile view
-        objectFit: 'fill' as const,
+        objectFit: 'cover' as const,
         overflow: 'hidden' as const,
         position: 'relative' as const
       }
@@ -270,7 +246,41 @@ if (!props.roomId && !userId.value) {
 }
 
 
+// Handle the "playing" event
 
+const audioLevels : Record<string, number> = reactive({});
+const handlePlaying =async (userId: string) => {
+  if (!userId) return false;
+  const videoStream = getVideoSource(userId) as MediaStream;
+  if (videoStream) {
+    return detectAudio(videoStream, userId);
+  }
+ return false
+};
+async function detectAudio(stream: MediaStream, participantId: string): Promise<boolean> {
+  try {
+    const audioContext = new AudioContext();
+    const analyser = audioContext.createAnalyser();
+    const source = audioContext.createMediaStreamSource(stream);
+    source.connect(analyser);
+    
+    const checkAudio = () => {
+      const data = new Uint8Array(analyser.frequencyBinCount);
+      analyser.getByteFrequencyData(data);
+      
+      // Get average volume
+      const volume = data.reduce((a, b) => a + b) / data.length;
+      audioLevels[participantId] = volume / 255; // Normalize to 0-1
+      
+      requestAnimationFrame(checkAudio);
+    };
+    
+    checkAudio();
+    return true
+  } catch (error) {
+    return false
+  }
+}
 </script>
 
 <template>
@@ -284,14 +294,17 @@ if (!props.roomId && !userId.value) {
              :style="getParticipantStyle()">
 
               <div class="participant-container"  v-show="socketClient.localVideo.value">
+                <!-- <span style="color: aqua;" v-show="!shouldShowVideo(participant?.userId)">HELLO......</span> -->
                 <video
                 class="videos"
-                v-if="shouldShowVideo(participant.userId)"
+                :class="{ 'is-speaking': audioLevels[participant?.userId] > 0.02 }"
+                v-if="shouldShowVideo(participant?.userId)"
                 :id="participant?.id"
-                :srcObject="getVideoSource(participant.userId)"
+                :srcObject="getVideoSource(participant?.userId)"
                 autoplay
                 playsinline
-                ></video>
+                @playing="handlePlaying(participant?.userId)"
+              ></video>
                 <div class="avatar" v-else>
                   <img  src="../assets/user.png" :alt="participant?.userId" >
                 </div>
@@ -359,11 +372,13 @@ main{
   height: 90%;
   min-width: 90vw;
   background-color: #222222;
-  color: white;
+  /* color: white; */
   overflow: hidden;
   margin: 0;
   padding: 0;
-  border: 10px solid #3b3b3b;
+  border: 10px solid #161616;
+  box-shadow: 0 10px 10px rgba(36, 36, 36, 0.5);
+  border-radius: 10px;
   
 }
 
@@ -376,7 +391,8 @@ main{
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-direction: column
+  flex-direction: column;
+  border-radius: 10px;
 }
 
 .video-grid {
@@ -393,12 +409,15 @@ main{
 }
 
 .videos{
-  width: 100%;
-  height: 150%;
+  width: 95%;
+  height: 95%;
   object-fit:contain;
-  transform: scaleX(-1)
+  transform: scaleX(-1);
+  border-radius: 2px;
 }
-
+.is-speaking {
+  border: 3px solid #469cff;
+}
 .video-placeholder {
   position: relative;
   background: #222222;
@@ -463,6 +482,7 @@ main{
     width: 100%;
   }
   .videos{
+    width: 100%;
     object-fit: cover;
   }
   
@@ -527,7 +547,7 @@ main{
   position: fixed;
   bottom: 80px;
   right: 30px;
-  background-color: #3f52ff;
+  background-color: #7885ff;
   min-width:fit-content;
   color: rgb(0, 0, 0);
   padding: 15px;

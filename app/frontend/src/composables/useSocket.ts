@@ -45,7 +45,7 @@ export default class SocketClient{
     private pendingIceCandidates:  RTCIceCandidate[] = [];
 
     public isVideo : Ref<boolean> = ref(true)
-    public isAudio : Ref<boolean> = ref(false)
+    public isAudio : Ref<boolean> = ref(true)
 
     constructor(){
         const SOCKET_URL = import.meta.env.VITE_BACKEND_URL
@@ -205,7 +205,7 @@ export default class SocketClient{
     }
     private async handleCreateOffer() {
         try {
-            await this.fecthUserMedia(this.isVideo.value,this.isAudio.value)
+            await this.fetchUserMedia(this.isVideo.value,this.isAudio.value)
             await this.handlePeerConnection(true)
 
             //CREATE OFFER
@@ -222,7 +222,7 @@ export default class SocketClient{
         offererSocketId : string
     }) {
         try {
-            await this.fecthUserMedia(this.isVideo.value,this.isAudio.value)
+            await this.fetchUserMedia(this.isVideo.value,this.isAudio.value)
             await this.handlePeerConnection(false,{offer: data.offer},{
                 receiverId : data.offererSocketId
             })
@@ -271,7 +271,7 @@ export default class SocketClient{
             }
         }
     }
-    private async fecthUserMedia(isvideo:boolean,isaudio:boolean): Promise<void> {
+    private async fetchUserMedia(isVideo: boolean, isAudio: boolean): Promise<void> {
         try {
             // Check if browser supports getUserMedia
             if (!navigator.mediaDevices?.getUserMedia) {
@@ -280,26 +280,32 @@ export default class SocketClient{
     
             // Store stream for later cleanup
             this.localStream.value = await navigator.mediaDevices.getUserMedia({
-                video: isvideo,
-                audio: isaudio,
+                video: isVideo,
+                audio: isAudio,
             });
     
-            // Create and configure video element
-            if (!this.localVideo.value) {
-                this.localVideo.value = document.createElement('video');
-                this.localVideo.value.muted = true; // Mute local video to prevent feedback
-                this.localVideo.value.playsInline = true; // Better mobile support
-            }
-            
-            // Set stream as source
-            this.localVideo.value.srcObject = this.localStream.value;
-            
-            // Handle autoplay
-            try {
-                await this.localVideo.value.play();
-            } catch (playError) {
-                console.warn('Autoplay failed:', playError);
-                // Add play button or other fallback UI if needed
+            // Only set up video element if video is enabled
+            if (isVideo) {
+                // Create and configure video element
+                if (!this.localVideo.value) {
+                    this.localVideo.value = document.createElement('video');
+                    this.localVideo.value.muted = true; // Mute local video to prevent feedback
+                    this.localVideo.value.playsInline = true; // Better mobile support
+                }
+                
+                // Set stream as source for video tracks only
+                const videoStream = new MediaStream(
+                    this.localStream.value.getVideoTracks()
+                );
+                this.localVideo.value.srcObject = videoStream;
+                
+                // Handle autoplay
+                try {
+                    await this.localVideo.value.play();
+                } catch (playError) {
+                    console.warn('Autoplay failed:', playError);
+                    // Add play button or other fallback UI if needed
+                }
             }
     
             // Optional: Handle stream ending
@@ -310,20 +316,22 @@ export default class SocketClient{
                 };
             });
     
-        }catch (error) {
-            
+        } catch (error) {
             if (error instanceof DOMException) {
                 switch (error.name) {
                     case 'NotFoundError':
+                        console.error('Camera/microphone not found');
                         break;
                     case 'NotAllowedError':
+                        console.error('Permission denied');
                         break;
                     case 'NotReadableError':
+                        console.error('Device is in use or not accessible');
                         break;
                     default:
+                        console.error('Media error:', error);
                 }
             }
-
         }
     }
     public async toggleVideo(): Promise<void> {
@@ -341,11 +349,14 @@ export default class SocketClient{
                     audio: this.isAudio.value
                 });
     
-                // Update local stream and video element
+                // Update local video element with video tracks only
                 if (this.localVideo.value) {
-                    this.localStream.value = newStream;
-                    this.localVideo.value.srcObject = newStream;
+                    const videoOnlyStream = new MediaStream(newStream.getVideoTracks());
+                    this.localVideo.value.srcObject = videoOnlyStream;
                 }
+    
+                // Update local stream with all tracks
+                this.localStream.value = newStream;
     
                 // Update peer connection
                 const senders = this.peerConnection.value?.getSenders();
@@ -357,14 +368,10 @@ export default class SocketClient{
                         this.peerConnection.value?.addTrack(track, this.localStream.value!);
                     }
                 });
-    
-                // Trigger renegotiation
-                // const offer = await this.peerConnection.value!.createOffer();
-                // await this.peerConnection.value!.setLocalDescription(offer);
-                // Send offer to remote peer (implementation required)
             }
         }
     }
+    
     public async toggleAudio(): Promise<void> {
         if (this.localStream.value) {
             const audioTracks = this.localStream.value.getAudioTracks();
@@ -380,12 +387,16 @@ export default class SocketClient{
                     video: this.isVideo.value
                 });
     
-                // Update local stream
-                if (this.localVideo.value) {
-                    this.localStream.value = newStream;
-                    this.localVideo.value.srcObject = newStream;
-                    this.localVideo.value.muted = true;
+                // Keep existing video tracks in local video element
+                if (this.localVideo.value && this.isVideo.value) {
+                    const currentVideoStream = this.localVideo.value.srcObject as MediaStream;
+                    const videoTracks = currentVideoStream?.getVideoTracks() || [];
+                    const videoOnlyStream = new MediaStream(videoTracks);
+                    this.localVideo.value.srcObject = videoOnlyStream;
                 }
+    
+                // Update local stream with all tracks
+                this.localStream.value = newStream;
     
                 // Update peer connection
                 const senders = this.peerConnection.value?.getSenders();
