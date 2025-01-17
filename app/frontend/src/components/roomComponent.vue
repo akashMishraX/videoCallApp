@@ -362,8 +362,8 @@ async function detectAudio(stream: MediaStream, participantId: string): Promise<
       </button>
     </div>
 
-    <div id="notification" class="notification" v-show="socketClient.isNewMsg.value && !showMessageBox">
-      <div v-show="socketClient.isNewMsg.value && !showMessageBox">
+    <div id="notification" class="notification" v-show="socketClient.isNewMsg.value && !showMessageBox && socketClient.currentRoomId.value === props.roomId">
+      <div v-show="socketClient.isNewMsg.value && !showMessageBox ">
         <span v-show="socketClient.newMessage.value.userId !== userId" style="display: flex;gap: 10px; justify-content: center;align-items: center; transition: all 0.5s ease-in-out;">
           <span style="font-size: 20px; color: white; font-style: italic;">{{ socketClient.newMessage.value.userId }}:-</span>
           <span style="font-size: 30px; color: white; font-style:normal;">{{ socketClient.newMessage.value.msg }}</span>
@@ -510,7 +510,9 @@ main{
     object-fit: cover;
   }
   
-  
+  .controls-container{
+    margin-bottom: 10px;
+  }
 }
 .controls-container {
   position: fixed;

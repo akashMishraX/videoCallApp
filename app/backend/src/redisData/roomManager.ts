@@ -495,7 +495,9 @@ export default class RoomManager {
             throw error
         }
     }
-    
+    async clearRedis(){
+        await this.redis.flushall()
+    }
 
     
  

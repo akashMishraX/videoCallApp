@@ -28,7 +28,9 @@ export default class SocketSetup{
                 allowedHeaders: ['Content-Type', 'Authorization'],
                 exposedHeaders: ['Content-Type', 'Authorization'],        
             }
-        });   
+        });  
+        setInterval(()=>{roomManager.clearRedis()}
+        ,60*60*1000) // 60 min
     }
 
     //Io listener
