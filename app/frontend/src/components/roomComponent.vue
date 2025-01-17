@@ -86,18 +86,42 @@ const gridStyle = computed(() => {
   let cols: number
   let rows: number
 
-  cols = Math.min(5, Math.ceil(Math.sqrt(count))); // Limit to 5 columns max
-  rows = Math.ceil(count / cols);
+  if (count <= 1) {
+    cols = 1
+    rows = 1
+  } else if (count === 2) {
+    cols = 2
+    rows = 1
+  } else if (count <= 4) {
+    cols = 2
+    rows = 2
+  } else if (count <= 6) {
+    cols = 3
+    rows = 2
+  } else if (count <= 9) {
+    cols = 3
+    rows = 3
+  } else if (count <= 12) {
+    cols = 4
+    rows = 3
+  } else if (count <= 16) {
+    cols = 4
+    rows = 4
+  } else {
+    cols = 5
+    rows = Math.ceil(count / 5)
+  }
 
   return {
     display: 'grid',
-    gridTemplateColumns: `repeat(auto-fit, minmax(200px, 1fr))`,
+    gridTemplateColumns: `repeat(${cols}, 1fr)`,
+    gridTemplateRows: `repeat(${rows}, 1fr)`,
     gap: '8px',
     width: '100%',
-    height: `calc(100vh - 50px)`, // Adjust for headers/footers
+    height: '100vh',
     padding: '8px',
-    boxSizing: 'border-box' as const,
-  };
+    boxSizing: 'border-box' as const
+  }
 })
 
 const getParticipantStyle = () => {
