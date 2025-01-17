@@ -1,7 +1,7 @@
 import { Server } from 'socket.io'
 import { InitRedis } from './redisSetup'
 
-
+require('dotenv').config()
 interface ConnectionDetails {
     offer: RTCSessionDescriptionInit;
     answer: RTCSessionDescriptionInit;
@@ -22,7 +22,7 @@ export default class SocketSetup{
         console.log('Socket init....')
         this._io = new Server(server,{
             cors:{
-                origin: 'https://localhost:5173', 
+                origin: process.env.CLIENT_URL, 
                 methods : ['GET','POST'],
                 credentials:true,
                 allowedHeaders: ['Content-Type', 'Authorization'],
