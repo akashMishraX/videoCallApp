@@ -5,13 +5,13 @@ import SocketSetup from './services/socketSetup'
 import  cors  from 'cors'
 // import getAllParticipants from "./functions/index"
 
-// const privateKey = fs.readFileSync('./src/cert.key', 'utf8'); // Path to your private key
-// const certificate = fs.readFileSync('./src/cert.crt', 'utf8'); // Path to your certificate
-// const ca = fs.readFileSync('./src/ca.crt', 'utf8'); // Optional, for full chain
+const privateKey = fs.readFileSync('./src/cert.key', 'utf8'); // Path to your private key
+const certificate = fs.readFileSync('./src/cert.crt', 'utf8'); // Path to your certificate
+const ca = fs.readFileSync('./src/ca.crt', 'utf8'); // Optional, for full chain
 
-const privateKey = fs.readFileSync('/etc/letsencrypt/live/yourdomain.com/privkey.pem', 'utf8');
-const certificate = fs.readFileSync('/etc/letsencrypt/live/yourdomain.com/fullchain.pem', 'utf8');
-const ca = fs.readFileSync('/etc/letsencrypt/live/yourdomain.com/chain.pem', 'utf8'); // Optional, if you need it
+// const privateKey = fs.readFileSync('/etc/letsencrypt/live/yourdomain.com/privkey.pem', 'utf8');
+// const certificate = fs.readFileSync('/etc/letsencrypt/live/yourdomain.com/fullchain.pem', 'utf8');
+// const ca = fs.readFileSync('/etc/letsencrypt/live/yourdomain.com/chain.pem', 'utf8'); // Optional, if you need it
 
 const credentials = { key: privateKey, cert: certificate, ca };
 
