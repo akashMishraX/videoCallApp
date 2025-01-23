@@ -232,18 +232,21 @@ const handleConnect = async () => {
 const showMessageBox: Ref<boolean> = ref(false)
 const showMessageButton: Ref<boolean> = ref(true)
 const showInfoButton: Ref<boolean> = ref(true)
+const isCopied: Ref<boolean> = ref(false)
 
 // Methods
 const handleShowInfo = () => {
-  navigator.clipboard.writeText(props.roomId)
-    .then(() => {
-      console.log('Room ID copied to clipboard!');
-      // Optionally, show a notification or message to the user
-    })
-    .catch((error) => {
-      console.error('Failed to copy room ID:', error);
-  });
-}
+    navigator.clipboard.writeText(props.roomId)
+      .then(() => {
+        isCopied.value= true;
+        setTimeout(() => {
+          isCopied.value= false;
+        }, 3000);  // Hide the toast after 3 seconds
+      })
+      .catch((error) => {
+        console.error('Failed to copy room ID:', error);
+      });
+};
 
 const handleShowMessageBox = () => {
   showMessageBox.value = !showMessageBox.value
@@ -362,6 +365,7 @@ async function detectAudio(stream: MediaStream, participantId: string): Promise<
   <div class="controls-container">
     <div class="video-controls">
       <button v-show="showInfoButton" class="control-button info" @click="handleShowInfo">
+        <p v-if="isCopied" class="copy-feedback">Room ID copied to clipboard!</p>
         <img src="../assets/link-cp.png" alt="Toggle info" class="control-icon">
       </button>
       <button class="control-button" :class="{ 'disabled': !socketClient.isAudio.value }" @click="toggleAudio">
@@ -599,5 +603,38 @@ main{
   transition: opacity 1s ease, bottom 1s ease;
 }
 
+.toast {
+  background-color: #4caf50;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 5px;
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  font-weight: bold;
+  animation: fadein 0.5s, fadeout 0.5s 2.5s;
+}
 
+.copy-feedback {
+  position: absolute;
+  top: -50px;
+  left: 50%;
+
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 14px;
+  font-weight: bold;
+  animation: fadein 0.5s, fadeout 0.5s 2.5s;
+}
+
+@keyframes fadein {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeout {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
 </style>
