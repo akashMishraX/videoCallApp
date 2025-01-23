@@ -90,7 +90,7 @@ onUnmounted(() => {
       <nav class="nav-bar" >
         <div class="nav-content" >
           <div class="nav-left">
-            <h1 class="nav-title">Chat App</h1>
+            <h1 class="nav-title">Video Calling App</h1>
           </div>
           
           <div class="nav-right">
