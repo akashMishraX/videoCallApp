@@ -5,11 +5,13 @@ import SocketSetup from './services/socketSetup'
 import  cors  from 'cors'
 // import getAllParticipants from "./functions/index"
 
-const privateKey = fs.readFileSync('/path/to/privkey.pem', 'utf8'); // Replace with your file path
-const certificate = fs.readFileSync('/path/to/cert.pem', 'utf8');
-const ca = fs.readFileSync('/path/to/chain.pem', 'utf8'); // Optional, for full chain
+const privateKey = fs.readFileSync('./src/cert.key', 'utf8'); // Path to your private key
+const certificate = fs.readFileSync('./src/cert.crt', 'utf8'); // Path to your certificate
+const ca = fs.readFileSync('./src/ca.crt', 'utf8'); // Optional, for full chain
 
 const credentials = { key: privateKey, cert: certificate, ca };
+
+// console.log(credentials)
 
 const app = express()
 const httpServer = createServer(credentials, app)
