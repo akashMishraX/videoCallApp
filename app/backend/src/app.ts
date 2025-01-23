@@ -1,13 +1,18 @@
 import express,{ Request, Response} from "express"
-import { createServer} from "node:http"
+import { createServer} from "node:https"
+import fs from 'fs' 
 import SocketSetup from './services/socketSetup'
 import  cors  from 'cors'
 // import getAllParticipants from "./functions/index"
 
+const privateKey = fs.readFileSync('/path/to/privkey.pem', 'utf8'); // Replace with your file path
+const certificate = fs.readFileSync('/path/to/cert.pem', 'utf8');
+const ca = fs.readFileSync('/path/to/chain.pem', 'utf8'); // Optional, for full chain
 
+const credentials = { key: privateKey, cert: certificate, ca };
 
 const app = express()
-const httpServer = createServer(app)
+const httpServer = createServer(credentials, app)
 const port = process.env.PORT || 3000;
 console.log(process.env.PORT)
 const socketSetup = new SocketSetup(httpServer)
