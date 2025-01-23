@@ -231,8 +231,20 @@ const handleConnect = async () => {
 // Chat visibility state
 const showMessageBox: Ref<boolean> = ref(false)
 const showMessageButton: Ref<boolean> = ref(true)
+const showInfoButton: Ref<boolean> = ref(true)
 
 // Methods
+const handleShowInfo = () => {
+  navigator.clipboard.writeText(props.roomId)
+    .then(() => {
+      console.log('Room ID copied to clipboard!');
+      // Optionally, show a notification or message to the user
+    })
+    .catch((error) => {
+      console.error('Failed to copy room ID:', error);
+  });
+}
+
 const handleShowMessageBox = () => {
   showMessageBox.value = !showMessageBox.value
 }
@@ -349,6 +361,9 @@ async function detectAudio(stream: MediaStream, participantId: string): Promise<
 
   <div class="controls-container">
     <div class="video-controls">
+      <button v-show="showInfoButton" class="control-button info" @click="handleShowInfo">
+        <img src="../assets/link-cp.png" alt="Toggle info" class="control-icon">
+      </button>
       <button class="control-button" :class="{ 'disabled': !socketClient.isAudio.value }" @click="toggleAudio">
         <img src="../assets/audio-call.png" alt="Toggle audio" class="control-icon">
       </button>
@@ -370,6 +385,7 @@ async function detectAudio(stream: MediaStream, participantId: string): Promise<
         </span>
       </div>
     </div>
+   
     <button v-show="showMessageButton" class="control-button chat" @click="handleShowMessageBox">
       <img src="../assets/chat-call.png" alt="Toggle chat" class="control-icon">
     </button>
